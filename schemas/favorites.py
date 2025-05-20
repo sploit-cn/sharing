@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from schemas.projects import ProjectRelatedResponse
+from schemas.projects import ProjectBaseResponse
 from schemas.users import UserRelatedResponse
 
 
@@ -24,7 +24,7 @@ class FavoriteUserResponse(BaseModel):
 
 class FavoriteProjectResponse(BaseModel):
   id: int
-  project: ProjectRelatedResponse
+  project: ProjectBaseResponse
   user_id: int
 
   class Config:
