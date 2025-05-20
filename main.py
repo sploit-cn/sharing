@@ -22,36 +22,36 @@ async def lifespan(app: FastAPI):
   logger.addHandler(handler)
   # Elastisearch 连接配置
   async_connections.create_connection(
-    hosts=Settings.ELASTIC_URL, api_key=Settings.ELASTIC_APIKEY
+      hosts=Settings.ELASTIC_URL, api_key=Settings.ELASTIC_APIKEY
   )
   yield
 
 
 app = FastAPI(
-  title="开源项目展示平台API",
-  description="基于FastAPI和Tortoise-ORM的开源项目展示平台后端API",
-  version="0.1.0",
-  lifespan=lifespan,
+    title="开源项目展示平台API",
+    description="基于FastAPI和Tortoise-ORM的开源项目展示平台后端API",
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 origins = [
-  "http://localhost",
-  "http://localhost:3000",
-  "http://localhost:5173",
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
 # noinspection PyTypeChecker
 app.add_middleware(
-  CORSMiddleware,
-  allow_origins=origins,
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 register_tortoise(
-  app,
-  config=TORTOISE_ORM,
+    app,
+    config=TORTOISE_ORM,
 )
 register_exception_handlers(app)
 

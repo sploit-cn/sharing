@@ -91,6 +91,17 @@ class ProjectFullResponse(ProjectBaseResponse):
   images: list[ImageResponse]
 
 
+class ProjectRelatedResponse(BaseModel):
+  id: int
+  name: str
+  repo_id: str
+  avatar: Optional[str] = None
+  is_approved: bool
+
+  class Config:
+    from_attributes = True
+
+
 ProjectOrderFields = Literal[
     "id",
     "stars",

@@ -12,11 +12,11 @@ class ValidationError(ClientError):
   """数据验证错误"""
 
   def __init__(
-    self,
-    message="数据验证失败",
-    fields: dict[str, str | list[str]] = {},
-    *args,
-    **kwargs,
+      self,
+      message="数据验证失败",
+      fields: dict[str, str | list[str]] = {},
+      *args,
+      **kwargs,
   ):
     super().__init__(422, message, *args, **kwargs)
     self.fields = fields
@@ -47,7 +47,7 @@ class PermissionDeniedError(ClientError):
 class ResourceNotFoundError(ClientError):
   """资源未找到错误"""
 
-  def __init__(self, message="资源不存在", resource="", *args, **kwargs):
+  def __init__(self, message="不存在", resource="资源", *args, **kwargs):
     if resource:
       message = f"{resource} {message}"
     super().__init__(404, message, *args, **kwargs)

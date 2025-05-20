@@ -3,6 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Query, Security
 
 from core.exceptions import PermissionDeniedError, ResourceNotFoundError
 from models.models import Platform
+from schemas.comments import CommentResponse
 from schemas.common import DataResponse, MessageResponse, PaginatedResponse
 from schemas.projects import (
     ProjectAdminUpdate,
@@ -14,6 +15,7 @@ from schemas.projects import (
     ProjectPaginationParams,
     ProjectSearchParams,
 )
+from services.notification_service import NotificationService
 from services.project_service import ProjectService
 from services.user_service import UserService
 from tasks.elastic_sync import delete_project_from_es, sync_project_to_es
@@ -56,6 +58,12 @@ async def get_my_projects(payload: UserPayloadData = Security(verify_current_use
   return DataResponse(data=result)
 
 
+@router.get("/{project_id}/comments", response_model=DataResponse[list[CommentResponse]])
+async def get_project_comments(project_id: int):
+  result = await ProjectService.get_project_comments(project_id)
+  return DataResponse(data=result)
+
+
 @router.get("/{project_id}", response_model=DataResponse[ProjectFullResponse])
 async def get_project(project_id: int):
   result = await ProjectService.get_project(project_id)
@@ -66,7 +74,6 @@ async def get_project(project_id: int):
 @router.post("/", response_model=DataResponse[ProjectFullResponse])
 async def create_project(
     project_create: ProjectCreate,
-    background_tasks: BackgroundTasks,
     payload: UserPayloadData = Security(verify_current_user),
 ):
   repo_detail = await ProjectService.get_repo_detail(
@@ -76,7 +83,7 @@ async def create_project(
       **project_create.model_dump(), **repo_detail.model_dump(), submitter_id=payload.id
   )
   project = await ProjectService.create_project(project_model)
-  background_tasks.add_task(sync_project_to_es, project)
+  await NotificationService.notify_admins(f"项目 {project.name} 已提交审核", related_project=project.id)
   return DataResponse(data=project)
 
 
@@ -89,17 +96,50 @@ async def update_my_project(
 ):
 
   project = await ProjectService.get_project_shallow(project_id)
-  if project.submitter_id != payload.id:
-    raise PermissionDeniedError(message="非项目提交者，无权更改")
   user = await UserService.get_user_by_id(payload.id)
-  if project.is_approved == True:
-    if project.platform == Platform.GITHUB:
-      if user.github_id != project.owner_platform_id:
-        raise PermissionDeniedError(message="项目已通过审核，非所有者无权更改")
-    elif project.platform == Platform.GITEE:
-      if user.gitee_id != project.owner_platform_id:
-        raise PermissionDeniedError(message="项目已通过审核，非所有者无权更改")
+  if (project.platform == Platform.GITHUB and user.github_id == project.owner_platform_id) or (project.platform == Platform.GITEE and user.gitee_id == project.owner_platform_id):
+    # 所有者
+    pass
+  elif project.submitter_id == payload.id:
+    # 推荐者
+    if project.is_approved == True:
+      raise PermissionDeniedError(message="项目已通过审核，非所有者无权更改")
+  else:
+    raise PermissionDeniedError(message="非项目推荐者或所有者，无权更改")
   project = await ProjectService.update_project(project_id, project_update)
+  await NotificationService.notify_admins(f"项目 {project.name} 已被推荐者/所有者更新", related_project=project.id)
+  background_tasks.add_task(sync_project_to_es, project)
+  return DataResponse(data=project)
+
+
+@router.put("/{project_id}/approve", response_model=DataResponse[ProjectFullResponse])
+async def approve_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+  project = await ProjectService.approve_project(project_id)
+  await NotificationService.notify_user(f"您分享的项目 {project.name} 已通过审核", user_id=project.submitter_id, related_project=project.id)
+  background_tasks.add_task(sync_project_to_es, project)
+  return DataResponse(data=project)
+
+
+@router.put("/{project_id}/reject", response_model=DataResponse[ProjectFullResponse])
+async def reject_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+  project = await ProjectService.reject_project(project_id)
+  await NotificationService.notify_user(f"您分享的项目 {project.name} 未通过审核", user_id=project.submitter_id, related_project=project.id)
+  background_tasks.add_task(delete_project_from_es, project_id)
+  return DataResponse(data=project)
+
+
+@router.put("/{project_id}/feature", response_model=DataResponse[ProjectFullResponse])
+async def feature_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+  project = await ProjectService.feature_project(project_id)
+  await NotificationService.notify_user(f"您分享的项目 {project.name} 已设置为精选", user_id=project.submitter_id, related_project=project.id)
+  background_tasks.add_task(sync_project_to_es, project)
+  return DataResponse(data=project)
+
+
+@router.put("/{project_id}/unfeature", response_model=DataResponse[ProjectFullResponse])
+async def unfeature_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+  project = await ProjectService.unfeature_project(project_id)
+  await NotificationService.notify_user(f"您分享的项目 {project.name} 已取消精选", user_id=project.submitter_id, related_project=project.id)
   background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
 

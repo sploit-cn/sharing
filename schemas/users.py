@@ -65,6 +65,17 @@ class UserResponse(BaseModel):
     from_attributes = True
 
 
+class UserRelatedResponse(BaseModel):
+  id: int
+  username: str
+  avatar: Optional[str] = None
+  bio: str
+  in_use: bool
+
+  class Config:
+    from_attributes = True
+
+
 UserFields = Literal[
     "id",
     "avatar",

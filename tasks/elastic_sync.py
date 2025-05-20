@@ -1,8 +1,16 @@
 from models.models import Project
 from models.elastic_models import Project as ESProject
+from elasticsearch.exceptions import NotFoundError
 
 
 async def sync_project_to_es(project: Project):
+  if project.is_approved == True:
+    await submit_project_to_es(project)
+  else:
+    await delete_project_from_es(project.id)
+
+
+async def submit_project_to_es(project: Project):
   tag_ids = [tag.id for tag in project.tags]
   es_project = ESProject(
       meta={"id": project.id},
@@ -19,4 +27,9 @@ async def sync_project_to_es(project: Project):
 
 
 async def delete_project_from_es(project_id: int):
-  await ESProject.get(id=project_id).delete()
+  try:
+    doc = await ESProject.get(id=project_id)
+    if doc:
+      await doc.delete()
+  except NotFoundError:
+    pass

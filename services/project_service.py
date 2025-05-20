@@ -2,7 +2,7 @@ from elasticsearch.dsl import AsyncSearch
 from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
 from core.exceptions import ResourceNotFoundError
 from models.elastic_models import Project as ESProject
-from models.models import Image, Platform, Project, Tag
+from models.models import Comment, Image, Platform, Project, Tag, User
 from schemas.common import PaginatedData
 from schemas.projects import (
     ProjectAdminUpdate,
@@ -12,12 +12,14 @@ from schemas.projects import (
     ProjectRepoDetail,
     ProjectSearchParams,
 )
+from services.user_service import UserService
 from utils.database import pagination_query
 from utils.gitee_api import GiteeAPI
 from utils.github_api import GitHubAPI
 from utils.time import now
 from tortoise.transactions import atomic
 from tortoise.expressions import F
+from tortoise.query_utils import Prefetch
 
 
 class ProjectService:
@@ -81,7 +83,11 @@ class ProjectService:
 
   @staticmethod
   async def get_my_projects(user_id: int) -> list[Project]:
-    return await Project.filter(submitter_id=user_id).prefetch_related("tags").order_by("updated_at")
+    submitter_projects = await Project.filter(submitter_id=user_id).prefetch_related("tags").order_by("updated_at")
+    user = await UserService.get_user_by_id(user_id)
+    owner_github_projects = await Project.filter(platform=Platform.GITHUB, owner_platform_id=user.github_id).prefetch_related("tags").order_by("updated_at")
+    owner_gitee_projects = await Project.filter(platform=Platform.GITEE, owner_platform_id=user.gitee_id).prefetch_related("tags").order_by("updated_at")
+    return submitter_projects + owner_github_projects + owner_gitee_projects
 
   @staticmethod
   async def get_project(project_id: int) -> Project:
@@ -151,6 +157,13 @@ class ProjectService:
     )
 
   @staticmethod
+  async def get_project_comments(project_id: int) -> list[Comment]:
+    return await Comment.filter(project_id=project_id).prefetch_related(
+        Prefetch("user", queryset=User.all().only(
+            "id", "username", "avatar", "bio", "in_use"))
+    ).order_by("created_at")
+
+  @staticmethod
   @atomic()
   async def create_project(project_create: ProjectCreateModel):
     project = await Project.create(
@@ -181,12 +194,38 @@ class ProjectService:
     return project
 
   @staticmethod
-  async def delete_project(project_id: int):
-    await Project.filter(id=project_id).delete()
+  async def approve_project(project_id: int):
+    count = await Project.filter(id=project_id).update(is_approved=True)
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    return await ProjectService.get_project(project_id)
+
+  @staticmethod
+  async def reject_project(project_id: int):
+    count = await Project.filter(id=project_id).update(is_approved=False)
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    return await ProjectService.get_project(project_id)
+
+  @staticmethod
+  async def feature_project(project_id: int):
+    count = await Project.filter(id=project_id).update(is_featured=True)
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    return await ProjectService.get_project(project_id)
+
+  @staticmethod
+  async def unfeature_project(project_id: int):
+    count = await Project.filter(id=project_id).update(is_featured=False)
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    return await ProjectService.get_project(project_id)
 
   @staticmethod
   async def increase_view_count(project_id: int):
-    await Project.filter(id=project_id).update(view_count=F("view_count") + 1)
+    count = await Project.filter(id=project_id).update(view_count=F("view_count") + 1)
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
 
   @staticmethod
   async def delete_project(project_id: int):
