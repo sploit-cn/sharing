@@ -16,3 +16,7 @@ async def sync_project_to_es(project: Project):
       tags=tag_ids,
   )
   await es_project.save()
+
+
+async def delete_project_from_es(project_id: int):
+  await ESProject.get(id=project_id).delete()

@@ -76,8 +76,7 @@ class Project(CreateTimeMixin, Model):
   programming_language = fields.CharField(max_length=100, null=True)
   code_example = fields.TextField(null=True)
   last_commit_at = fields.DatetimeField(null=True)
-  average_rating = fields.DecimalField(
-      max_digits=4, decimal_places=2, default=0)
+  average_rating = fields.FloatField(default=0)
   rating_count = fields.IntField(default=0)
   repo_created_at = fields.DatetimeField(null=True)
   last_sync_at = fields.DatetimeField(null=True)

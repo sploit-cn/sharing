@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Query, Security
 
 from core.exceptions import PermissionDeniedError, ResourceNotFoundError
 from models.models import Platform
-from schemas.common import DataResponse, PaginatedResponse
+from schemas.common import DataResponse, MessageResponse, PaginatedResponse
 from schemas.projects import (
     ProjectAdminUpdate,
     ProjectBaseResponse,
@@ -16,7 +16,7 @@ from schemas.projects import (
 )
 from services.project_service import ProjectService
 from services.user_service import UserService
-from tasks.elastic_sync import sync_project_to_es
+from tasks.elastic_sync import delete_project_from_es, sync_project_to_es
 from utils.security import (
     UserPayloadData,
     verify_current_admin_user,
@@ -114,3 +114,10 @@ async def update_project(
   project = await ProjectService.update_project(project_id, project_update)
   background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
+
+
+@router.delete("/{project_id}", response_model=MessageResponse)
+async def delete_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+  await ProjectService.delete_project(project_id)
+  background_tasks.add_task(delete_project_from_es, project_id)
+  return MessageResponse(message="项目删除成功")

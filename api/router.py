@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.endpoints import auth, users, projects, comments, tags
+from api.endpoints import auth, users, projects, comments, tags, ratings
 
 router = APIRouter()
 
@@ -17,3 +17,6 @@ router.include_router(projects.router, prefix="/projects", tags=["项目"])
 
 # 标签路由
 router.include_router(tags.router, prefix="/tags", tags=["标签"])
+
+# 评分路由
+router.include_router(ratings.router, prefix="/ratings", tags=["评分"])

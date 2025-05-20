@@ -172,7 +172,7 @@ class ProjectService:
     update_dict = project_update.model_dump(
         exclude=set(["tag_ids"]), exclude_unset=True)
     update_dict["updated_at"] = now()
-    await project.update_from_dict(update_dict)
+    await project.update_from_dict(update_dict).save()
     if project_update.tag_ids is not None:
       tags = await Tag.filter(id__in=project_update.tag_ids)
       await project.tags.clear()
@@ -187,3 +187,9 @@ class ProjectService:
   @staticmethod
   async def increase_view_count(project_id: int):
     await Project.filter(id=project_id).update(view_count=F("view_count") + 1)
+
+  @staticmethod
+  async def delete_project(project_id: int):
+    count = await Project.filter(id=project_id).delete()
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
