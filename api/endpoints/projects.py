@@ -3,9 +3,9 @@ from fastapi import APIRouter, BackgroundTasks, Query, Security
 
 from core.exceptions import PermissionDeniedError, ResourceNotFoundError
 from models.models import Platform
-from schemas.comments import CommentResponse
+from schemas.comments import CommentCreate, CommentResponse
 from schemas.common import DataResponse, MessageResponse, PaginatedResponse
-from schemas.favorite import FavoriteResponse, FavoriteUserResponse
+from schemas.favorites import FavoriteResponse, FavoriteUserResponse
 from schemas.projects import (
     ProjectAdminUpdate,
     ProjectBaseResponse,
@@ -16,6 +16,7 @@ from schemas.projects import (
     ProjectPaginationParams,
     ProjectSearchParams,
 )
+from services.comment_service import CommentService
 from services.notification_service import NotificationService
 from services.project_service import ProjectService
 from services.user_service import UserService
@@ -98,6 +99,18 @@ async def create_project(
 async def create_favorite(project_id: int, payload: UserPayloadData = Security(verify_current_user)):
   favorite = await ProjectService.create_favorite(project_id, payload.id)
   return DataResponse(data=favorite)
+
+
+@router.post("/{project_id}/comment", response_model=DataResponse[CommentResponse])
+async def create_comment(project_id: int, comment_create: CommentCreate, payload: UserPayloadData = Security(verify_current_user)):
+  comment = await ProjectService.create_comment(payload.id, project_id, comment_create)
+  project = await ProjectService.get_project_shallow(project_id)
+  if comment_create.parent_id is not None:
+    parent_comment = await CommentService.get_comment(comment_create.parent_id)
+    await NotificationService.notify_user(f"您在项目 {project.name} 的评论有新的回复", user_id=parent_comment.user_id, related_project=comment.project_id, related_comment=comment.id)
+  else:
+    await NotificationService.notify_admins(f"您分享的项目 {project.name} 有新的评论", related_project=comment.project_id, related_comment=comment.id)
+  return DataResponse(data=comment)
 
 
 @router.put("/my/{project_id}", response_model=DataResponse[ProjectFullResponse])

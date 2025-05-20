@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Security
 
 from schemas.common import DataResponse, MessageResponse
-from schemas.tag import TagCreate, TagResponse, TagUpdate
+from schemas.tags import TagCreate, TagResponse, TagUpdate
 from services.tag_service import TagService
 from utils.security import UserPayloadData, verify_current_admin_user
 

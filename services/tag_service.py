@@ -1,6 +1,6 @@
 from core.exceptions import ResourceNotFoundError
 from models.models import Tag
-from schemas.tag import TagCreate, TagUpdate
+from schemas.tags import TagCreate, TagUpdate
 
 
 class TagService:

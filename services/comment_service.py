@@ -1,15 +1,10 @@
 from models.models import Comment, User
-from schemas.comments import CommentCreate
 from tortoise.query_utils import Prefetch
 from core.exceptions import ResourceNotFoundError
+from schemas.comments import CommentUpdate
 
 
 class CommentService:
-  @staticmethod
-  async def create_comment(user_id: int, comment_create: CommentCreate):
-    comment = await Comment.create(user_id=user_id, **comment_create.model_dump(exclude_unset=True))
-    await comment.fetch_related("user")
-    return comment
 
   @staticmethod
   async def get_comment(comment_id: int):

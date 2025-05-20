@@ -16,9 +16,12 @@ class CommentRelatedResponse(BaseModel):
 
 
 class CommentCreate(BaseModel):
-  project_id: int
   content: str
   parent_id: Optional[int] = None
+
+
+class CommentUpdate(BaseModel):
+  content: Optional[str] = None
 
 
 class CommentResponse(BaseModel):

@@ -2,6 +2,7 @@ from elasticsearch.dsl import AsyncSearch
 from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
 from core.exceptions import ResourceNotFoundError, ResourceExistsError
 from models.models import Comment, Favorite, Image, Platform, Project, Tag, User
+from schemas.comments import CommentCreate
 from schemas.common import PaginatedData
 from schemas.projects import (
     ProjectAdminUpdate,
@@ -174,6 +175,12 @@ class ProjectService:
     await project.tags.add(*tags)
     await project.fetch_related("submitter", "tags", "images")
     return project
+
+  @staticmethod
+  async def create_comment(user_id: int, project_id: int, comment_create: CommentCreate):
+    comment = await Comment.create(user_id=user_id, project_id=project_id, **comment_create.model_dump(exclude_unset=True))
+    await comment.fetch_related("user")
+    return comment
 
   @staticmethod
   @atomic()

@@ -5,8 +5,8 @@ from pydantic.main import BaseModel
 
 from models.models import Platform
 from schemas.common import Order, PaginationParams
-from schemas.image import ImageResponse
-from schemas.tag import TagResponse
+from schemas.images import ImageResponse
+from schemas.tags import TagResponse
 from schemas.users import UserResponse
 
 
