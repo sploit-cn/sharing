@@ -16,11 +16,11 @@ from services.auth_service import AuthService
 from utils.github_api import GitHubAPI
 from utils.gitee_api import GiteeAPI
 from utils.security import (
-  OAuthPayloadData,
-  create_oauth_access_token,
-  create_user_access_token,
-  get_password_hash,
-  verify_current_oauth,
+    OAuthPayloadData,
+    create_oauth_access_token,
+    create_user_access_token,
+    get_password_hash,
+    verify_current_oauth,
 )
 from utils.time import now
 
@@ -36,21 +36,21 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
-  form_data: OAuth2PasswordRequestForm = Security(),
+    form_data: OAuth2PasswordRequestForm = Security(),
 ) -> LoginResponse:
   """用户登录"""
   user = await AuthService.authenticate_user(form_data.username, form_data.password)
   # 此处错误处理兼容 Swagger UI，使用 HTTP Error code
   if not user:
     raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="用户名或密码错误",
-      headers={"WWW-Authenticate": "Bearer"},
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="用户名或密码错误",
+        headers={"WWW-Authenticate": "Bearer"},
     )
   if not user.in_use:
     raise HTTPException(
-      status_code=status.HTTP_403_FORBIDDEN,
-      detail="用户已注销或被封禁",
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="用户已注销或被封禁",
     )
 
   # 更新最后登录时间
@@ -78,21 +78,21 @@ async def register(user_data: UserCreate) -> DataResponse[LoginResponse]:
   # 创建用户
   now_time = now()
   user = await User.create(
-    username=user_data.username,
-    email=user_data.email,
-    password_hash=get_password_hash(user_data.password),
-    last_login=now_time,
-    updated_at=now_time,
-    role=Role.USER,
+      username=user_data.username,
+      email=user_data.email,
+      password_hash=get_password_hash(user_data.password),
+      last_login=now_time,
+      updated_at=now_time,
+      role=Role.USER,
   )
   access_token = create_user_access_token(user=user)
 
   return DataResponse(
-    data=LoginResponse(
-      access_token=access_token,
-      token_type="bearer",
-      user=UserResponse.model_validate(user),
-    )
+      data=LoginResponse(
+          access_token=access_token,
+          token_type="bearer",
+          user=UserResponse.model_validate(user),
+      )
   )
 
 
@@ -100,11 +100,11 @@ async def register(user_data: UserCreate) -> DataResponse[LoginResponse]:
 @router.get("/github")
 async def get_github_url():
   encoded_params = urlencode(
-    {
-      "client_id": Settings.GITHUB_CLIENT_ID,
-      "redirect_uri": Settings.GITHUB_REDIRECT_URI,
-      "scope": "user:email",
-    }
+      {
+          "client_id": Settings.GITHUB_CLIENT_ID,
+          "redirect_uri": Settings.GITHUB_REDIRECT_URI,
+          "scope": "user:email",
+      }
   )
   github_url = f"https://github.com/login/oauth/authorize?{encoded_params}"
   return DataResponse(data=github_url)
@@ -117,21 +117,24 @@ async def github_callback(code: str):
     github_user = await GitHubAPI.get_current_user(access_token)
     github_id = github_user["id"]
     github_name = github_user["login"]
+    github_avatar = github_user["avatar_url"]
     user = await User.get_or_none(github_id=github_id)
     # 若已注册且绑定账号
     if user:
       if not user.in_use:
         raise PermissionDeniedError("用户已注销或被封禁")
       user.github_name = github_name
+      if user.avatar is None:
+        user.avatar = github_avatar
       user.last_login = now()
       await user.save()
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
-        defaults={"access_token": access_token},
-        platform=Platform.GITHUB,
-        platform_id=github_id,
-        user_id=user.id,
+          defaults={"access_token": access_token},
+          platform=Platform.GITHUB,
+          platform_id=github_id,
+          user_id=user.id,
       )
       return RedirectResponse(url=f"/oauth-success?{token_encoded}")
     # 若用户未绑定过 OAuth，检查用户是否已用邮箱注册过账号
@@ -149,27 +152,30 @@ async def github_callback(code: str):
       now_time = now()
       user.github_id = github_id
       user.github_name = github_name
+      if user.avatar is None:
+        user.avatar = github_avatar
       user.last_login = now_time
       user.updated_at = now_time
       await user.save()
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
-        defaults={"access_token": access_token},
-        platform=Platform.GITHUB,
-        platform_id=github_id,
-        user_id=user.id,
+          defaults={"access_token": access_token},
+          platform=Platform.GITHUB,
+          platform_id=github_id,
+          user_id=user.id,
       )
       return RedirectResponse(url=f"/oauth-success?{token_encoded}")
     # 若未注册，跳转注册
-    oauth_jwt_token = create_oauth_access_token(Platform.GITHUB, github_id, github_name)
+    oauth_jwt_token = create_oauth_access_token(
+        Platform.GITHUB, github_id, github_name)
     token_encoded = urlencode(
-      {"token": oauth_jwt_token, "email": primary_email_address}
+        {"token": oauth_jwt_token, "email": primary_email_address}
     )
     await OAuthAccount.update_or_create(
-      defaults={"access_token": access_token},
-      platform=Platform.GITHUB,
-      platform_id=github_id,
+        defaults={"access_token": access_token},
+        platform=Platform.GITHUB,
+        platform_id=github_id,
     )
     return RedirectResponse(url=f"/oauth-register?{token_encoded}")
   except Exception as e:
@@ -181,12 +187,12 @@ async def github_callback(code: str):
 @router.get("/gitee")
 async def get_gitee_url():
   encoded_params = urlencode(
-    {
-      "client_id": Settings.GITEE_CLIENT_ID,
-      "redirect_uri": Settings.GITEE_REDIRECT_URI,
-      "response_type": "code",
-      "scope": "user_info emails",
-    }
+      {
+          "client_id": Settings.GITEE_CLIENT_ID,
+          "redirect_uri": Settings.GITEE_REDIRECT_URI,
+          "response_type": "code",
+          "scope": "user_info emails",
+      }
   )
   gitee_url = f"https://gitee.com/oauth/authorize?{encoded_params}"
   return DataResponse(data=gitee_url)
@@ -200,21 +206,25 @@ async def gitee_callback(code: str):
     gitee_user_data = await GiteeAPI.get_current_user(access_token)
     gitee_id = gitee_user_data["id"]
     gitee_name = gitee_user_data["login"]
+    gitee_avatar = gitee_user_data["avatar_url"]
     user = await User.get_or_none(gitee_id=gitee_id)
     # 若已注册且绑定账号
     if user:
       if not user.in_use:
         raise PermissionDeniedError("邮箱关联用户已注销或被封禁")
       user.gitee_name = gitee_name
+      if user.avatar is None:
+        user.avatar = gitee_avatar
       user.last_login = now()
       await user.save()
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
-        defaults={"access_token": access_token, "refresh_token": refresh_token},
-        platform=Platform.GITEE,
-        platform_id=gitee_id,
-        user_id=user.id,
+          defaults={"access_token": access_token,
+                    "refresh_token": refresh_token},
+          platform=Platform.GITEE,
+          platform_id=gitee_id,
+          user_id=user.id,
       )
       return RedirectResponse(url=f"/oauth-success?{token_encoded}")
     # 若用户未绑定过 OAuth，检查用户是否已用邮箱注册过账号
@@ -234,25 +244,31 @@ async def gitee_callback(code: str):
         now_time = now()
         user.gitee_id = gitee_id
         user.gitee_name = gitee_name
+        if user.avatar is None:
+          user.avatar = gitee_avatar
         user.last_login = now_time
         user.updated_at = now_time
         await user.save()
         user_jwt_token = create_user_access_token(user)
         token_encoded = urlencode({"token": user_jwt_token})
         await OAuthAccount.update_or_create(
-          defaults={"access_token": access_token, "refresh_token": refresh_token},
-          platform=Platform.GITHUB,
-          platform_id=gitee_id,
-          user_id=user.id,
+            defaults={"access_token": access_token,
+                      "refresh_token": refresh_token},
+            platform=Platform.GITEE,
+            platform_id=gitee_id,
+            user_id=user.id,
         )
         return RedirectResponse(url=f"/oauth-success?{token_encoded}")
     # 若未注册，跳转注册
-    oauth_jwt_token = create_oauth_access_token(Platform.GITEE, gitee_id, gitee_name)
-    token_encoded = urlencode({"token": oauth_jwt_token, "email": email_address})
+    oauth_jwt_token = create_oauth_access_token(
+        Platform.GITEE, gitee_id, gitee_name)
+    token_encoded = urlencode(
+        {"token": oauth_jwt_token, "email": email_address})
     await OAuthAccount.update_or_create(
-      defaults={"access_token": access_token, "refresh_token": refresh_token},
-      platform=Platform.GITEE,
-      platform_id=gitee_id,
+        defaults={"access_token": access_token,
+                  "refresh_token": refresh_token},
+        platform=Platform.GITEE,
+        platform_id=gitee_id,
     )
     return RedirectResponse(url=f"/oauth-register?{token_encoded}")
   except Exception as e:
@@ -262,7 +278,7 @@ async def gitee_callback(code: str):
 
 @router.post("/oauth-register", response_model=DataResponse[UserResponse])
 async def oauth_register(
-  user_data: UserCreate, payload: OAuthPayloadData = Security(verify_current_oauth)
+    user_data: UserCreate, payload: OAuthPayloadData = Security(verify_current_oauth)
 ):
   """注册用户"""
   # 检查用户名是否已存在
@@ -276,27 +292,33 @@ async def oauth_register(
   now_time = now()
   user = None
   if payload.platform is Platform.GITHUB:
+    access_token = await AuthService.get_access_token_by_payload(payload)
+    github_user = await GitHubAPI.get_current_user(access_token)
     user = await User.create(
-      username=user_data.username,
-      email=user_data.email,
-      password_hash=get_password_hash(user_data.password),
-      last_login=now_time,
-      updated_at=now_time,
-      role=Role.USER,
-      github_id=payload.id,
-      github_name=payload.name,
+        username=user_data.username,
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        last_login=now_time,
+        updated_at=now_time,
+        role=Role.USER,
+        github_id=github_user["id"],
+        github_name=github_user["login"],
+        avatar=github_user["avatar_url"],
     )
     await OAuthAccount.filter(github_id=payload.id).update(user_id=user.id)
   elif payload.platform is Platform.GITEE:
+    access_token = await AuthService.get_access_token_by_payload(payload)
+    gitee_user = await GiteeAPI.get_current_user(access_token)
     user = await User.create(
-      username=user_data.username,
-      email=user_data.email,
-      password_hash=get_password_hash(user_data.password),
-      last_login=now_time,
-      updated_at=now_time,
-      role=Role.USER,
-      gitee_id=payload.id,
-      gitee_name=payload.name,
+        username=user_data.username,
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        last_login=now_time,
+        updated_at=now_time,
+        role=Role.USER,
+        gitee_id=gitee_user["id"],
+        gitee_name=gitee_user["login"],
+        avatar=gitee_user["avatar_url"],
     )
     await OAuthAccount.filter(gitee_id=payload.id).update(user_id=user.id)
 
