@@ -1,0 +1,18 @@
+from models.models import Project
+from models.elastic_models import Project as ESProject
+
+
+async def sync_project_to_es(project: Project):
+  tag_ids = [tag.id for tag in project.tags]
+  es_project = ESProject(
+      meta={"id": project.id},
+      name=project.name,
+      brief=project.brief,
+      description=project.description,
+      programming_language=project.programming_language,
+      license=project.license,
+      platform=project.platform,
+      is_featured=project.is_featured,
+      tags=tag_ids,
+  )
+  await es_project.save()

@@ -1,5 +1,7 @@
 from elasticsearch.dsl import AsyncSearch
 from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
+from core.exceptions import ResourceNotFoundError
+from models.elastic_models import Project as ESProject
 from models.models import Image, Platform, Project, Tag
 from schemas.common import PaginatedData
 from schemas.projects import (
@@ -15,6 +17,7 @@ from utils.gitee_api import GiteeAPI
 from utils.github_api import GitHubAPI
 from utils.time import now
 from tortoise.transactions import atomic
+from tortoise.expressions import F
 
 
 class ProjectService:
@@ -47,6 +50,23 @@ class ProjectService:
     return result_ids
 
   @staticmethod
+  async def suggest_projects(keyword: str) -> list[str]:
+    return await ProjectService.suggest_projects_through_es(keyword)
+
+  @staticmethod
+  async def suggest_projects_through_es(keyword: str) -> list[str]:
+    search = AsyncSearch(index="projects")
+    search = search.suggest('name', keyword, completion={
+                            'field': 'name.suggest'}).source(fields=False)[0:10]
+    result = await search.execute()
+    return [item.text for item in result.suggest.name[0].options]
+
+  @staticmethod
+  async def suggest_projects_through_db(keyword: str) -> list[str]:
+    projects = await Project.filter(name__istartswith=keyword).values_list("name", flat=True)
+    return projects
+
+  @staticmethod
   async def get_projects(
       params: ProjectPaginationParams,
   ) -> PaginatedData:
@@ -60,10 +80,23 @@ class ProjectService:
     return await pagination_query(params, query)
 
   @staticmethod
+  async def get_my_projects(user_id: int) -> list[Project]:
+    return await Project.filter(submitter_id=user_id).prefetch_related("tags").order_by("updated_at")
+
+  @staticmethod
   async def get_project(project_id: int) -> Project:
-    result = await Project.get(id=project_id).prefetch_related(
+    result = await Project.get_or_none(id=project_id).prefetch_related(
         "tags", "images", "submitter"
     )
+    if result is None:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    return result
+
+  @staticmethod
+  async def get_project_shallow(project_id: int) -> Project:
+    result = await Project.get_or_none(id=project_id)
+    if result is None:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
     return result
 
   @staticmethod
@@ -78,7 +111,8 @@ class ProjectService:
     repo_detail = await GitHubAPI.get_repo_detail(repo_id)
     contributors = await GitHubAPI.get_repo_contributors(repo_id)
     return ProjectRepoDetail(
-        avatar=repo_detail["avatar_url"],
+        avatar=repo_detail.get(
+            "avatar_url", repo_detail["owner"]["avatar_url"]),
         name=repo_detail["name"],
         repo_url=f"https://github.com/{repo_detail['full_name']}",
         website_url=repo_detail["homepage"],
@@ -99,7 +133,8 @@ class ProjectService:
     repo_detail = await GiteeAPI.get_repo_detail(repo_id)
     contributors = await GiteeAPI.get_repo_contributors(repo_id)
     return ProjectRepoDetail(
-        avatar=repo_detail["owner"]["avatar_url"],
+        avatar=repo_detail.get(
+            "avatar_url", repo_detail["owner"]["avatar_url"]),
         name=repo_detail["name"],
         repo_url=f"https://gitee.com/{repo_detail['full_name']}",
         website_url=repo_detail["homepage"],
@@ -131,13 +166,24 @@ class ProjectService:
   @staticmethod
   @atomic()
   async def update_project(project_id: int, project_update: ProjectOwnerUpdate | ProjectAdminUpdate):
-    project = await Project.get(id=project_id)
-    await project.update(
-        **project_update.model_dump(exclude=set(["tag_ids"])),
-        updated_at=now(),
-    )
-    tags = await Tag.filter(id__in=project_update.tag_ids)
-    await project.tags.clear()
-    await project.tags.add(*tags)
+    project = await Project.get_or_none(id=project_id)
+    if project is None:
+      raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+    update_dict = project_update.model_dump(
+        exclude=set(["tag_ids"]), exclude_unset=True)
+    update_dict["updated_at"] = now()
+    await project.update_from_dict(update_dict)
+    if project_update.tag_ids is not None:
+      tags = await Tag.filter(id__in=project_update.tag_ids)
+      await project.tags.clear()
+      await project.tags.add(*tags)
     await project.fetch_related("submitter", "tags", "images")
     return project
+
+  @staticmethod
+  async def delete_project(project_id: int):
+    await Project.filter(id=project_id).delete()
+
+  @staticmethod
+  async def increase_view_count(project_id: int):
+    await Project.filter(id=project_id).update(view_count=F("view_count") + 1)

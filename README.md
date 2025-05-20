@@ -207,3 +207,41 @@ erDiagram
   }
 }
 ```
+
+```json
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "terms_set": {
+            "tags": {
+              "terms": [
+                1,
+                2,
+                3
+              ],
+              "minimum_should_match": 1
+            }
+          }
+        }
+      ],
+      "must": [
+        {
+          "multi_match": {
+            "query": "pt",
+            "fields": [
+              "name^5",
+              "brief^3",
+              "description^1"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "from": 0,
+  "size": 10,
+  "_source": false
+}
+```

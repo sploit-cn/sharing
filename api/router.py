@@ -15,5 +15,5 @@ router.include_router(projects.router, prefix="/projects", tags=["项目"])
 # # 评论路由
 # router.include_router(comments.router, prefix="/comments", tags=["评论"])
 
-# # 标签路由
-# router.include_router(tags.router, prefix="/tags", tags=["标签"])
+# 标签路由
+router.include_router(tags.router, prefix="/tags", tags=["标签"])

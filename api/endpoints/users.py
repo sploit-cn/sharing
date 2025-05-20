@@ -43,11 +43,8 @@ async def get_current_user(
 async def get_user(
     user_id: int,
 ):
-  try:
-    user = await UserService.get_user_by_id(user_id)
-    return DataResponse(data=user)
-  except Exception:
-    raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
+  user = await UserService.get_user_by_id(user_id)
+  return DataResponse(data=user)
 
 
 @router.put("/me", response_model=DataResponse[UserResponse])
@@ -55,11 +52,8 @@ async def update_current_user(
     update_fields: UserUpdate,
     payload=Security(verify_current_user),
 ):
-  try:
-    user = await UserService.update_user(payload.id, update_fields)
-    return DataResponse(data=user)
-  except Exception:
-    raise ResourceNotFoundError(resource=f"用户ID:{payload.id}")
+  user = await UserService.update_user(payload.id, update_fields)
+  return DataResponse(data=user)
 
 
 @router.put("/me/password", response_model=MessageResponse)
@@ -67,14 +61,11 @@ async def update_current_user_password(
     update_fields: UserUpdatePassword,
     payload=Security(verify_current_user),
 ):
-  try:
-    user = await UserService.get_user_by_id(payload.id)
-    if verify_password(update_fields.old_password, user.password_hash):
-      await UserService.update_user_password(payload.id, update_fields.password)
-      return MessageResponse(message="用户密码更新成功")
-    raise AuthenticationError(message="旧密码错误")
-  except Exception:
-    raise ResourceNotFoundError(resource=f"用户ID:{payload.id}")
+  user = await UserService.get_user_by_id(payload.id)
+  if verify_password(update_fields.old_password, user.password_hash):
+    await UserService.update_user_password(payload.id, update_fields.new_password)
+    return MessageResponse(message="用户密码更新成功")
+  raise AuthenticationError(message="旧密码错误")
 
 
 @router.put("/{user_id}/password", response_model=MessageResponse)
@@ -83,11 +74,8 @@ async def update_user_password(
     update_fields: AdminUpdatePassword,
     payload=Security(verify_current_admin_user),
 ):
-  try:
-    await UserService.update_user_password(user_id, update_fields.new_password)
-    return MessageResponse(message="用户密码更新成功")
-  except Exception:
-    raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
+  await UserService.update_user_password(user_id, update_fields.new_password)
+  return MessageResponse(message="用户密码更新成功")
 
 
 @router.put("/{user_id}", response_model=DataResponse[UserResponse])
@@ -96,8 +84,5 @@ async def update_user(
     update_fields: UserUpdateByAdmin,
     payload=Security(verify_current_admin_user),
 ):
-  try:
-    user = await UserService.update_user(user_id, update_fields)
-    return DataResponse(data=user)
-  except Exception:
-    raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
+  user = await UserService.update_user(user_id, update_fields)
+  return DataResponse(data=user)

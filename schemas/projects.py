@@ -34,6 +34,7 @@ class ProjectOwnerUpdate(BaseModel):
   description: Optional[str] = None
   download_url: Optional[HttpUrl] = Field(None, max_length=255)
   code_example: Optional[str] = None
+  # 如果为 None，则不更新标签
   tag_ids: Optional[list[int]] = None
 
 
@@ -60,6 +61,7 @@ class ProjectBaseResponse(BaseModel):
   view_count: int
   is_approved: bool
   is_featured: bool
+  submitter_id: int
   avatar: Optional[str] = None
   platform: Platform
   repo_id: str

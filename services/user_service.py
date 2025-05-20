@@ -1,5 +1,4 @@
-from core.exceptions import ResourceConflictError
-from core.exceptions.server_errors import DatabaseError
+from core.exceptions import ResourceConflictError, ResourceNotFoundError, DatabaseError
 from models.models import User
 from schemas.common import PaginatedData
 from schemas.users import (
@@ -23,7 +22,9 @@ class UserService:
 
   @staticmethod
   async def get_user_by_id(user_id: int) -> User:
-    data = await User.get(id=user_id)
+    data = await User.get_or_none(id=user_id)
+    if data is None:
+      raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
     return data
 
   @staticmethod
@@ -37,7 +38,7 @@ class UserService:
         **update_fields.model_dump(exclude_unset=True)
     )
     if status == 0:
-      raise DatabaseError()
+      raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
     user = await User.get(id=user_id)
     return user
 
@@ -46,4 +47,4 @@ class UserService:
     password_hash = get_password_hash(password)
     status = await User.filter(id=user_id).update(password_hash=password_hash)
     if status == 0:
-      raise DatabaseError()
+      raise ResourceNotFoundError(resource=f"用户ID:{user_id}")
