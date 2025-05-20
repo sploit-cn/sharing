@@ -1,8 +1,7 @@
 from elasticsearch.dsl import AsyncSearch
 from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
-from core.exceptions import ResourceNotFoundError
-from models.elastic_models import Project as ESProject
-from models.models import Comment, Image, Platform, Project, Tag, User
+from core.exceptions import ResourceNotFoundError, ResourceExistsError
+from models.models import Comment, Favorite, Image, Platform, Project, Tag, User
 from schemas.common import PaginatedData
 from schemas.projects import (
     ProjectAdminUpdate,
@@ -226,6 +225,27 @@ class ProjectService:
     count = await Project.filter(id=project_id).update(view_count=F("view_count") + 1)
     if count == 0:
       raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
+
+  @staticmethod
+  async def get_project_favorites(project_id: int):
+    return await Favorite.filter(project_id=project_id).prefetch_related(
+        Prefetch("user", queryset=User.all().only(
+            "id", "username", "avatar", "bio", "in_use"))
+    ).order_by("created_at")
+
+  @staticmethod
+  async def create_favorite(project_id: int, user_id: int):
+    favorite = await Favorite.get_or_none(project_id=project_id, user_id=user_id)
+    if favorite:
+      raise ResourceExistsError(message="请勿重复收藏")
+    favorite = await Favorite.create(project_id=project_id, user_id=user_id)
+    return favorite
+
+  @staticmethod
+  async def delete_favorite(project_id: int, user_id: int):
+    count = await Favorite.filter(project_id=project_id, user_id=user_id).delete()
+    if count == 0:
+      raise ResourceNotFoundError(resource=f"收藏")
 
   @staticmethod
   async def delete_project(project_id: int):

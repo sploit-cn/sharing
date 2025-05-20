@@ -5,6 +5,7 @@ from core.exceptions import PermissionDeniedError, ResourceNotFoundError
 from models.models import Platform
 from schemas.comments import CommentResponse
 from schemas.common import DataResponse, MessageResponse, PaginatedResponse
+from schemas.favorite import FavoriteResponse, FavoriteUserResponse
 from schemas.projects import (
     ProjectAdminUpdate,
     ProjectBaseResponse,
@@ -64,6 +65,12 @@ async def get_project_comments(project_id: int):
   return DataResponse(data=result)
 
 
+@router.get("/{project_id}/favorites", response_model=DataResponse[list[FavoriteUserResponse]])
+async def get_project_favorites(project_id: int):
+  result = await ProjectService.get_project_favorites(project_id)
+  return DataResponse(data=result)
+
+
 @router.get("/{project_id}", response_model=DataResponse[ProjectFullResponse])
 async def get_project(project_id: int):
   result = await ProjectService.get_project(project_id)
@@ -85,6 +92,12 @@ async def create_project(
   project = await ProjectService.create_project(project_model)
   await NotificationService.notify_admins(f"项目 {project.name} 已提交审核", related_project=project.id)
   return DataResponse(data=project)
+
+
+@router.post("/{project_id}/favorite", response_model=DataResponse[FavoriteResponse])
+async def create_favorite(project_id: int, payload: UserPayloadData = Security(verify_current_user)):
+  favorite = await ProjectService.create_favorite(project_id, payload.id)
+  return DataResponse(data=favorite)
 
 
 @router.put("/my/{project_id}", response_model=DataResponse[ProjectFullResponse])
@@ -154,6 +167,12 @@ async def update_project(
   project = await ProjectService.update_project(project_id, project_update)
   background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
+
+
+@router.delete("/{project_id}/favorite", response_model=MessageResponse)
+async def delete_favorite(project_id: int, payload: UserPayloadData = Security(verify_current_user)):
+  await ProjectService.delete_favorite(project_id, payload.id)
+  return MessageResponse(message="取消收藏成功")
 
 
 @router.delete("/{project_id}", response_model=MessageResponse)
