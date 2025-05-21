@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Query, Security
 
 from core.exceptions import PermissionDeniedError, ResourceNotFoundError
-from models.models import Platform
+from models.models import Platform, SyncLog
 from schemas.comments import CommentCreate, CommentResponse
 from schemas.common import DataResponse, MessageResponse, PaginatedResponse
 from schemas.favorites import FavoriteResponse, FavoriteUserResponse
@@ -14,6 +14,7 @@ from schemas.projects import (
     ProjectFullResponse,
     ProjectOwnerUpdate,
     ProjectPaginationParams,
+    ProjectRepoDetail,
     ProjectSearchParams,
 )
 from services.comment_service import CommentService
@@ -26,6 +27,7 @@ from utils.security import (
     verify_current_admin_user,
     verify_current_user,
 )
+from utils.time import now
 
 
 router = APIRouter()
@@ -49,9 +51,10 @@ async def search_projects(params: Annotated[ProjectSearchParams, Query()]):
   return DataResponse(data=result_ids)
 
 
-@router.get("/repo_detail")
+@router.get("/repo_detail", response_model=DataResponse[ProjectRepoDetail])
 async def get_repo_detail(platform: Platform, repo_id: str):
-  return await ProjectService.get_repo_detail(platform, repo_id)
+  result = await ProjectService.get_repo_detail(platform, repo_id)
+  return DataResponse(data=result)
 
 
 @router.get("/my", response_model=DataResponse[list[ProjectBaseResponse]])
@@ -82,6 +85,7 @@ async def get_project(project_id: int):
 @router.post("/", response_model=DataResponse[ProjectFullResponse])
 async def create_project(
     project_create: ProjectCreate,
+    background_tasks: BackgroundTasks,
     payload: UserPayloadData = Security(verify_current_user),
 ):
   repo_detail = await ProjectService.get_repo_detail(
@@ -91,7 +95,9 @@ async def create_project(
       **project_create.model_dump(), **repo_detail.model_dump(), submitter_id=payload.id
   )
   project = await ProjectService.create_project(project_model)
+  await SyncLog.create(project=project, status="success", project_detail=repo_detail.model_dump())
   await NotificationService.notify_admins(f"项目 {project.name} 已提交审核", related_project=project.id)
+  background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
 
 
@@ -139,18 +145,16 @@ async def update_my_project(
 
 
 @router.put("/{project_id}/approve", response_model=DataResponse[ProjectFullResponse])
-async def approve_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+async def approve_project(project_id: int, payload: UserPayloadData = Security(verify_current_admin_user)):
   project = await ProjectService.approve_project(project_id)
   await NotificationService.notify_user(f"您分享的项目 {project.name} 已通过审核", user_id=project.submitter_id, related_project=project.id)
-  background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
 
 
 @router.put("/{project_id}/reject", response_model=DataResponse[ProjectFullResponse])
-async def reject_project(project_id: int, background_tasks: BackgroundTasks, payload: UserPayloadData = Security(verify_current_admin_user)):
+async def reject_project(project_id: int, payload: UserPayloadData = Security(verify_current_admin_user)):
   project = await ProjectService.reject_project(project_id)
   await NotificationService.notify_user(f"您分享的项目 {project.name} 未通过审核", user_id=project.submitter_id, related_project=project.id)
-  background_tasks.add_task(delete_project_from_es, project_id)
   return DataResponse(data=project)
 
 

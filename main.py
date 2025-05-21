@@ -1,11 +1,14 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 from elasticsearch.dsl import async_connections
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from tortoise import connections
 from tortoise.contrib.fastapi import register_tortoise
 from config import Settings
+from tasks.project_sync import sync_projects
 from utils.database import TORTOISE_ORM
 from api.router import router
 from core import register_exception_handlers
@@ -24,8 +27,10 @@ async def lifespan(app: FastAPI):
   async_connections.create_connection(
       hosts=Settings.ELASTIC_URL, api_key=Settings.ELASTIC_APIKEY
   )
+  sync_task = asyncio.create_task(sync_projects(
+      interval=Settings.SYNC_INTERVAL, frequency=Settings.SYNC_FREQUENCY))
   yield
-
+  sync_task.cancel()
 
 app = FastAPI(
     title="开源项目展示平台API",
@@ -33,6 +38,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 origins = [
     "http://localhost",

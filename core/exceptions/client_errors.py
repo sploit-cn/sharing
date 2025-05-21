@@ -51,3 +51,10 @@ class ResourceNotFoundError(ClientError):
     if resource:
       message = f"{resource} {message}"
     super().__init__(404, message, *args, **kwargs)
+
+
+class FileTypeNotAllowedError(ClientError):
+  """文件类型不允许错误"""
+
+  def __init__(self, message="文件类型不允许", *args, **kwargs):
+    super().__init__(400, message, *args, **kwargs)

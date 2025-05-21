@@ -6,6 +6,7 @@ from .client_errors import (
     AuthenticationError,
     PermissionDeniedError,
     ResourceNotFoundError,
+    FileTypeNotAllowedError,
 )
 from .server_errors import ServerError, DatabaseError
 
@@ -22,4 +23,5 @@ __all__ = [
     "ResourceNotFoundError",
     "ServerError",
     "DatabaseError",
+    "FileTypeNotAllowedError",
 ]

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.endpoints import auth, users, projects, comments, tags, ratings, notifications, favorites
+from api.endpoints import auth, users, projects, comments, tags, ratings, notifications, favorites, images
 
 router = APIRouter()
 
@@ -27,3 +27,6 @@ router.include_router(notifications.router,
 
 # 收藏路由
 router.include_router(favorites.router, prefix="/favorites", tags=["收藏"])
+
+# 图片路由
+router.include_router(images.router, prefix="/images", tags=["图片"])

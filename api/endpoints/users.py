@@ -13,6 +13,7 @@ from schemas.users import (
 )
 from services.user_service import UserService
 from utils.security import (
+    UserPayloadData,
     verify_current_admin_user,
     verify_current_user,
     verify_password,
@@ -25,7 +26,7 @@ router = APIRouter()
 @router.get("/", response_model=PaginatedResponse[UserResponse])
 async def get_users(
     params: Annotated[UserPaginationParams, Query()],
-    payload=Security(verify_current_admin_user),
+    payload: UserPayloadData = Security(verify_current_admin_user),
 ):
   data = await UserService.get_users(params)
   return PaginatedResponse(data=data)
@@ -33,7 +34,7 @@ async def get_users(
 
 @router.get("/me", response_model=DataResponse[UserResponse])
 async def get_current_user(
-    payload=Security(verify_current_user),
+    payload: UserPayloadData = Security(verify_current_user),
 ):
   user = await UserService.get_user_by_id(payload.id)
   return DataResponse(data=user)
@@ -50,7 +51,7 @@ async def get_user(
 @router.put("/me", response_model=DataResponse[UserResponse])
 async def update_current_user(
     update_fields: UserUpdate,
-    payload=Security(verify_current_user),
+    payload: UserPayloadData = Security(verify_current_user),
 ):
   user = await UserService.update_user(payload.id, update_fields)
   return DataResponse(data=user)
@@ -59,7 +60,7 @@ async def update_current_user(
 @router.put("/me/password", response_model=MessageResponse)
 async def update_current_user_password(
     update_fields: UserUpdatePassword,
-    payload=Security(verify_current_user),
+    payload: UserPayloadData = Security(verify_current_user),
 ):
   user = await UserService.get_user_by_id(payload.id)
   if verify_password(update_fields.old_password, user.password_hash):
@@ -72,7 +73,7 @@ async def update_current_user_password(
 async def update_user_password(
     user_id: int,
     update_fields: AdminUpdatePassword,
-    payload=Security(verify_current_admin_user),
+    payload: UserPayloadData = Security(verify_current_admin_user),
 ):
   await UserService.update_user_password(user_id, update_fields.new_password)
   return MessageResponse(message="用户密码更新成功")
@@ -82,7 +83,7 @@ async def update_user_password(
 async def update_user(
     user_id: int,
     update_fields: UserUpdateByAdmin,
-    payload=Security(verify_current_admin_user),
+    payload: UserPayloadData = Security(verify_current_admin_user),
 ):
   user = await UserService.update_user(user_id, update_fields)
   return DataResponse(data=user)

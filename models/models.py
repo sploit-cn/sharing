@@ -245,6 +245,7 @@ class SyncLog(CreateTimeMixin, Model):
       "models.Project", related_name="sync_logs"
   )
   status = fields.CharField(max_length=20)
+  project_detail = fields.JSONField(default=None)
 
   class Meta(Model.Meta):
     table = "sync_logs"
@@ -255,7 +256,7 @@ class Image(CreateTimeMixin, Model):
   """图片实体类"""
 
   id = fields.IntField(pk=True)
-  uuid = fields.UUIDField(default=uuid.uuid4)
+  file_name = fields.CharField(max_length=255)
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
       "models.User", related_name="images", on_delete=fields.OnDelete.NO_ACTION
   )
@@ -263,7 +264,7 @@ class Image(CreateTimeMixin, Model):
       "models.Project", related_name="images", null=True
   )
   original_name = fields.CharField(max_length=255)
-  alt = fields.CharField(max_length=255, null=True)
+  mime_type = fields.CharField(max_length=50)
 
   class Meta(Model.Meta):
     table = "images"

@@ -40,9 +40,7 @@ class ProjectOwnerUpdate(BaseModel):
 
 class ProjectAdminUpdate(ProjectOwnerUpdate):
   """管理员更新项目请求模型"""
-
-  is_approved: Optional[bool] = None
-  is_featured: Optional[bool] = None
+  pass
 
 
 class ProjectBaseResponse(BaseModel):
@@ -180,8 +178,9 @@ class ProjectRepoDetail(BaseModel):
   repo_created_at: Optional[datetime] = None
   # owner.id
   owner_platform_id: int
+  # 同步时间
+  last_sync_at: Optional[datetime] = None
 
 
 class ProjectCreateModel(ProjectCreate, ProjectRepoDetail):
   submitter_id: int
-  pass

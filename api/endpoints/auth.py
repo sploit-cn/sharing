@@ -55,7 +55,7 @@ async def login(
 
   # 更新最后登录时间
   user.last_login = now()
-  await user.save()
+  await user.save(update_fields=["last_login"])
   # 创建访问令牌
   access_token = create_user_access_token(user=user)
   # 构建用户数据
@@ -126,8 +126,9 @@ async def github_callback(code: str):
       user.github_name = github_name
       if user.avatar is None:
         user.avatar = github_avatar
+        user.updated_at = now()
       user.last_login = now()
-      await user.save()
+      await user.save(update_fields=["last_login", "github_name", "avatar", "updated_at"])
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
@@ -156,7 +157,7 @@ async def github_callback(code: str):
         user.avatar = github_avatar
       user.last_login = now_time
       user.updated_at = now_time
-      await user.save()
+      await user.save(update_fields=["last_login", "github_name", "github_id", "avatar", "updated_at"])
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
@@ -215,8 +216,9 @@ async def gitee_callback(code: str):
       user.gitee_name = gitee_name
       if user.avatar is None:
         user.avatar = gitee_avatar
+        user.updated_at = now()
       user.last_login = now()
-      await user.save()
+      await user.save(update_fields=["last_login", "gitee_name", "avatar", "updated_at"])
       user_jwt_token = create_user_access_token(user)
       token_encoded = urlencode({"token": user_jwt_token})
       await OAuthAccount.update_or_create(
@@ -248,7 +250,7 @@ async def gitee_callback(code: str):
           user.avatar = gitee_avatar
         user.last_login = now_time
         user.updated_at = now_time
-        await user.save()
+        await user.save(update_fields=["last_login", "gitee_name", "gitee_id", "avatar", "updated_at"])
         user_jwt_token = create_user_access_token(user)
         token_encoded = urlencode({"token": user_jwt_token})
         await OAuthAccount.update_or_create(

@@ -132,6 +132,7 @@ class ProjectService:
         last_commit_at=repo_detail["pushed_at"],
         repo_created_at=repo_detail["created_at"],
         owner_platform_id=repo_detail["owner"]["id"],
+        last_sync_at=now(),
     )
 
   @staticmethod
@@ -154,6 +155,7 @@ class ProjectService:
         last_commit_at=repo_detail["pushed_at"],
         repo_created_at=repo_detail["created_at"],
         owner_platform_id=repo_detail["owner"]["id"],
+        last_sync_at=now(),
     )
 
   @staticmethod
@@ -201,7 +203,7 @@ class ProjectService:
 
   @staticmethod
   async def approve_project(project_id: int):
-    count = await Project.filter(id=project_id).update(is_approved=True)
+    count = await Project.filter(id=project_id).update(is_approved=True, approval_date=now())
     if count == 0:
       raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
     return await ProjectService.get_project(project_id)

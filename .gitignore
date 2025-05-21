@@ -16,3 +16,6 @@ wheels/
 # ide
 .idea
 .vscode
+
+# static files
+static/
