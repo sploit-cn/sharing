@@ -62,22 +62,3 @@ class PaginatedResponse(ResponseBase, Generic[T]):
   """分页响应模型"""
 
   data: PaginatedData[T]
-
-
-class OAuthCallbackUrl(BaseModel):
-  """OAuth回调URL模型"""
-
-  url: str
-
-
-class SyncStatus(BaseModel):
-  """同步状态模型"""
-
-  status: str
-  message: str
-
-
-class HttpExceptionDetail(BaseModel):
-  """HTTP异常详情模型"""
-
-  detail: str

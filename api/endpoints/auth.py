@@ -80,7 +80,7 @@ async def login(response: Response, user_data: UserCreate):
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, response_model=MessageResponse):
   """用户登出"""
   response.delete_cookie("user_token")
   response.delete_cookie("oauth_token")
@@ -121,7 +121,7 @@ async def register(response: Response, user_data: UserCreate) -> DataResponse[Lo
 
 
 # https://github.com/login/oauth/authorize?client_id=Ov23liCF21cB290Tihuy&scope=user%3Aemail
-@router.get("/github")
+@router.get("/github", response_model=DataResponse[str])
 async def get_github_url():
   encoded_params = urlencode(
       {
@@ -218,7 +218,7 @@ async def github_callback(code: str):
 
 
 # https://gitee.com/oauth/authorize?client_id=e53d4be774ef8d561f479640f06d05befd932ea2053621f8700843d534e4ffd1&redirect_uri=http://127.0.0.1:8000/auth/gitee/callback&response_type=code&scope=user_info%20emails
-@router.get("/gitee")
+@router.get("/gitee", response_model=DataResponse[str])
 async def get_gitee_url():
   encoded_params = urlencode(
       {
