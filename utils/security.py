@@ -1,10 +1,11 @@
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
+from typing import Optional
 
-from fastapi import Security, HTTPException
+from fastapi import Cookie, Security, HTTPException
 from fastapi.security import (
-  HTTPAuthorizationCredentials,
-  HTTPBearer,
-  OAuth2PasswordBearer,
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+    OAuth2PasswordBearer,
 )
 from jose import jwt
 from passlib.context import CryptContext
@@ -29,9 +30,9 @@ def get_password_hash(password: str) -> str:
 
 def get_credentials_exception():
   return HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="无效的身份验证凭据",
-    headers={"WWW-Authenticate": "Bearer"},
+      status_code=status.HTTP_401_UNAUTHORIZED,
+      detail="无效的身份验证凭据",
+      headers={"WWW-Authenticate": "Bearer"},
   )
 
 
@@ -49,7 +50,8 @@ class OAuthPayloadData(BaseModel):
 
 
 # OAuth2密码流
-oauth2_password_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_password_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/login_form", auto_error=False)
 bearer_scheme = HTTPBearer()
 
 
@@ -60,7 +62,7 @@ def create_user_access_token(user: User, expires_delta: timedelta | None = None)
 
 
 def create_oauth_access_token(
-  platform: Platform, id: int, name: str, expires_delta: timedelta | None = None
+    platform: Platform, id: int, name: str, expires_delta: timedelta | None = None
 ) -> str:
   """创建OAuth访问令牌"""
   data = OAuthPayloadData(platform=platform, id=id, name=name)
@@ -71,23 +73,28 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
   """创建JWT令牌"""
   to_encode = data.copy()
   if expires_delta:
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(UTC) + expires_delta
   else:
-    expire = datetime.utcnow() + timedelta(minutes=Settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(
+        UTC) + timedelta(seconds=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
   to_encode.update({"exp": expire})
   encoded_jwt = jwt.encode(
-    to_encode, Settings.SECRET_KEY, algorithm=Settings.JWT_ALGORITHM
+      to_encode, Settings.JWT_SECRET_KEY, algorithm=Settings.JWT_ALGORITHM
   )
   return encoded_jwt
 
 
 async def verify_current_user(
-  token: str = Security(oauth2_password_scheme),
+    header_token: Optional[str] = Security(oauth2_password_scheme),
+    user_token: Optional[str] = Cookie(None),
 ) -> UserPayloadData:
   """获取当前用户"""
   try:
+    token = header_token or user_token
+    if not token:
+      raise AuthenticationError(auth="JWT Token")
     payload = jwt.decode(
-      token, Settings.SECRET_KEY, algorithms=[Settings.JWT_ALGORITHM]
+        token, Settings.JWT_SECRET_KEY, algorithms=[Settings.JWT_ALGORITHM]
     )
     return UserPayloadData.model_validate(payload)
   except Exception:
@@ -95,7 +102,7 @@ async def verify_current_user(
 
 
 async def verify_current_admin_user(
-  payload: UserPayloadData = Security(verify_current_user),
+    payload: UserPayloadData = Security(verify_current_user),
 ) -> UserPayloadData:
   """获取当前管理员用户"""
   if payload.role != Role.ADMIN:
@@ -104,12 +111,13 @@ async def verify_current_admin_user(
 
 
 async def verify_current_oauth(
-  credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
 ) -> OAuthPayloadData:
   """获取当前OAuth用户"""
   try:
     payload = jwt.decode(
-      credentials.credentials, Settings.SECRET_KEY, algorithms=[Settings.JWT_ALGORITHM]
+        credentials.credentials, Settings.JWT_SECRET_KEY, algorithms=[
+            Settings.JWT_ALGORITHM]
     )
     return OAuthPayloadData.model_validate(payload)
   except Exception:

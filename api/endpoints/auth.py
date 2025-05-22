@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Security, status
+from fastapi import APIRouter, HTTPException, Response, Security, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -8,9 +8,9 @@ from pydantic import BaseModel
 from config import Settings
 from core.exceptions import ResourceConflictError
 from core.exceptions.base import CustomBaseException
-from core.exceptions.client_errors import PermissionDeniedError
+from core.exceptions.client_errors import AuthenticationError, PermissionDeniedError
 from models.models import OAuthAccount, Platform, Role, User
-from schemas.common import DataResponse
+from schemas.common import DataResponse, MessageResponse
 from schemas.users import UserCreate, UserResponse
 from services.auth_service import AuthService
 from utils.github_api import GitHubAPI
@@ -34,8 +34,9 @@ class LoginResponse(BaseModel):
   user: UserResponse
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login_form", response_model=LoginResponse)
 async def login(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Security(),
 ) -> LoginResponse:
   """用户登录"""
@@ -58,14 +59,36 @@ async def login(
   await user.save(update_fields=["last_login"])
   # 创建访问令牌
   access_token = create_user_access_token(user=user)
-  # 构建用户数据
-  user_data = UserResponse.model_validate(user)
+  response.set_cookie("user_token", access_token, httponly=True,
+                      max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
 
-  return LoginResponse(access_token=access_token, token_type="bearer", user=user_data)
+  return LoginResponse(access_token=access_token, token_type="bearer", user=user)
+
+
+@router.post("/login", response_model=DataResponse[LoginResponse])
+async def login(response: Response, user_data: UserCreate):
+  """用户登录"""
+  user = await AuthService.authenticate_user(user_data.username, user_data.password)
+  if not user:
+    raise AuthenticationError(auth="用户名或密码错误")
+  if not user.in_use:
+    raise PermissionDeniedError("用户已注销或被封禁")
+  access_token = create_user_access_token(user=user)
+  response.set_cookie("user_token", access_token, httponly=True,
+                      max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+  return DataResponse(data=LoginResponse(access_token=access_token, token_type="bearer", user=user))
+
+
+@router.post("/logout")
+async def logout(response: Response):
+  """用户登出"""
+  response.delete_cookie("user_token")
+  response.delete_cookie("oauth_token")
+  return MessageResponse(message="登出成功")
 
 
 @router.post("/register", response_model=DataResponse[LoginResponse])
-async def register(user_data: UserCreate) -> DataResponse[LoginResponse]:
+async def register(response: Response, user_data: UserCreate) -> DataResponse[LoginResponse]:
   """注册用户"""
   # 检查用户名是否已存在
   if await User.filter(username=user_data.username).exists():
@@ -86,12 +109,13 @@ async def register(user_data: UserCreate) -> DataResponse[LoginResponse]:
       role=Role.USER,
   )
   access_token = create_user_access_token(user=user)
-
+  response.set_cookie("user_token", access_token, httponly=True,
+                      max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
   return DataResponse(
       data=LoginResponse(
           access_token=access_token,
           token_type="bearer",
-          user=UserResponse.model_validate(user),
+          user=user,
       )
   )
 
@@ -137,7 +161,10 @@ async def github_callback(code: str):
           platform_id=github_id,
           user_id=user.id,
       )
-      return RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response = RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response.set_cookie("user_token", user_jwt_token, httponly=True,
+                          max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+      return response
     # 若用户未绑定过 OAuth，检查用户是否已用邮箱注册过账号
     github_emails = await GitHubAPI.get_current_user_emails(access_token)
     primary_email_address = None
@@ -166,7 +193,10 @@ async def github_callback(code: str):
           platform_id=github_id,
           user_id=user.id,
       )
-      return RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response = RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response.set_cookie("user_token", user_jwt_token, httponly=True,
+                          max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+      return response
     # 若未注册，跳转注册
     oauth_jwt_token = create_oauth_access_token(
         Platform.GITHUB, github_id, github_name)
@@ -178,7 +208,10 @@ async def github_callback(code: str):
         platform=Platform.GITHUB,
         platform_id=github_id,
     )
-    return RedirectResponse(url=f"/oauth-register?{token_encoded}")
+    response = RedirectResponse(url=f"/oauth-register?{token_encoded}")
+    response.set_cookie("oauth_token", oauth_jwt_token, httponly=True,
+                        max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+    return response
   except Exception as e:
     message_encoded = urlencode({"message": str(e)})
     return RedirectResponse(url=f"/oauth-failure?{message_encoded}")
@@ -228,7 +261,10 @@ async def gitee_callback(code: str):
           platform_id=gitee_id,
           user_id=user.id,
       )
-      return RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response = RedirectResponse(url=f"/oauth-success?{token_encoded}")
+      response.set_cookie("user_token", user_jwt_token, httponly=True,
+                          max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+      return response
     # 若用户未绑定过 OAuth，检查用户是否已用邮箱注册过账号
     email_address = None
     if gitee_user_data["email"] != "未公开邮箱":
@@ -260,7 +296,10 @@ async def gitee_callback(code: str):
             platform_id=gitee_id,
             user_id=user.id,
         )
-        return RedirectResponse(url=f"/oauth-success?{token_encoded}")
+        response = RedirectResponse(url=f"/oauth-success?{token_encoded}")
+        response.set_cookie("user_token", user_jwt_token, httponly=True,
+                            max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+        return response
     # 若未注册，跳转注册
     oauth_jwt_token = create_oauth_access_token(
         Platform.GITEE, gitee_id, gitee_name)
@@ -272,14 +311,18 @@ async def gitee_callback(code: str):
         platform=Platform.GITEE,
         platform_id=gitee_id,
     )
-    return RedirectResponse(url=f"/oauth-register?{token_encoded}")
+    response = RedirectResponse(url=f"/oauth-register?{token_encoded}")
+    response.set_cookie("oauth_token", oauth_jwt_token, httponly=True,
+                        max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+    return response
   except Exception as e:
     message_encoded = urlencode({"message": str(e)})
     return RedirectResponse(url=f"/oauth-failure?{message_encoded}")
 
 
-@router.post("/oauth-register", response_model=DataResponse[UserResponse])
+@router.post("/oauth-register", response_model=DataResponse[LoginResponse])
 async def oauth_register(
+    response: Response,
     user_data: UserCreate, payload: OAuthPayloadData = Security(verify_current_oauth)
 ):
   """注册用户"""
@@ -323,5 +366,14 @@ async def oauth_register(
         avatar=gitee_user["avatar_url"],
     )
     await OAuthAccount.filter(gitee_id=payload.id).update(user_id=user.id)
-
-  return DataResponse(data=user)
+  user_jwt_token = create_user_access_token(user)
+  response.set_cookie("user_token", user_jwt_token, httponly=True,
+                      max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+  response.delete_cookie("oauth_token")
+  return DataResponse(
+      data=LoginResponse(
+          access_token=user_jwt_token,
+          token_type="bearer",
+          user=user,
+      )
+  )

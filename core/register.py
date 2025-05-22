@@ -11,6 +11,7 @@ from core.handlers import (
 
 def register_exception_handlers(app: FastAPI):
   app.add_exception_handler(CustomBaseException, custom_exception_handler)
-  # app.add_exception_handler(RequestValidationError, validation_exception_handler)
+  app.add_exception_handler(RequestValidationError,
+                            validation_exception_handler)
   app.add_exception_handler(HTTPException, http_exception_handler)
   app.add_exception_handler(Exception, general_exception_handler)
