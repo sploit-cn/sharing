@@ -20,6 +20,7 @@ from utils.time import now
 from tortoise.transactions import atomic
 from tortoise.expressions import F
 from tortoise.query_utils import Prefetch
+from tortoise.exceptions import IntegrityError
 
 
 class ProjectService:
@@ -168,15 +169,20 @@ class ProjectService:
   @staticmethod
   @atomic()
   async def create_project(project_create: ProjectCreateModel):
-    project = await Project.create(
-        **project_create.model_dump(exclude=set(["tag_ids", "image_ids"])),
-        updated_at=now(),
-    )
-    tags = await Tag.filter(id__in=project_create.tag_ids)
-    await Image.filter(id__in=project_create.image_ids).update(project=project)
-    await project.tags.add(*tags)
-    await project.fetch_related("submitter", "tags", "images")
-    return project
+    try:
+      project = await Project.create(
+          **project_create.model_dump(exclude=set(["tag_ids", "image_ids"])),
+          updated_at=now(),
+      )
+      tags = await Tag.filter(id__in=project_create.tag_ids)
+      await Image.filter(id__in=project_create.image_ids).update(project=project)
+      await project.tags.add(*tags)
+      await project.fetch_related("submitter", "tags", "images")
+      return project
+    except IntegrityError:
+      raise ResourceExistsError(message="项目已存在")
+    except Exception as e:
+      raise e
 
   @staticmethod
   async def create_comment(user_id: int, project_id: int, comment_create: CommentCreate):

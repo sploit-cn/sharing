@@ -36,7 +36,6 @@ class LoginResponse(BaseModel):
 
 @router.post("/login_form", response_model=LoginResponse)
 async def login(
-    response: Response,
     form_data: OAuth2PasswordRequestForm = Security(),
 ) -> LoginResponse:
   """用户登录"""
@@ -59,8 +58,6 @@ async def login(
   await user.save(update_fields=["last_login"])
   # 创建访问令牌
   access_token = create_user_access_token(user=user)
-  response.set_cookie("user_token", access_token, httponly=True,
-                      max_age=Settings.ACCESS_TOKEN_EXPIRE_SECONDS)
 
   return LoginResponse(access_token=access_token, token_type="bearer", user=user)
 
