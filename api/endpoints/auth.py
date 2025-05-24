@@ -7,11 +7,10 @@ from pydantic import BaseModel
 
 from config import Settings
 from core.exceptions import ResourceConflictError
-from core.exceptions.base import CustomBaseException
 from core.exceptions.client_errors import AuthenticationError, PermissionDeniedError
 from models.models import OAuthAccount, Platform, Role, User
 from schemas.common import DataResponse, MessageResponse
-from schemas.users import UserCreate, UserResponse
+from schemas.users import UserCreate, UserLogin, UserResponse
 from services.auth_service import AuthService
 from utils.github_api import GitHubAPI
 from utils.gitee_api import GiteeAPI
@@ -63,7 +62,7 @@ async def login(
 
 
 @router.post("/login", response_model=DataResponse[LoginResponse])
-async def login(response: Response, user_data: UserCreate):
+async def login(response: Response, user_data: UserLogin):
   """用户登录"""
   user = await AuthService.authenticate_user(user_data.username, user_data.password)
   if not user:

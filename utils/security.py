@@ -52,7 +52,7 @@ class OAuthPayloadData(BaseModel):
 # OAuth2密码流
 oauth2_password_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login_form", auto_error=False)
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def create_user_access_token(user: User, expires_delta: timedelta | None = None) -> str:
@@ -91,6 +91,7 @@ async def verify_current_user(
   """获取当前用户"""
   try:
     token = header_token or user_token
+    print(token)
     if not token:
       raise AuthenticationError(auth="JWT Token")
     payload = jwt.decode(
@@ -111,12 +112,17 @@ async def verify_current_admin_user(
 
 
 async def verify_current_oauth(
-    credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(
+        bearer_scheme),
+    oauth_token: Optional[str] = Cookie(None),
 ) -> OAuthPayloadData:
   """获取当前OAuth用户"""
   try:
+    token = credentials.credentials or oauth_token
+    if not token:
+      raise AuthenticationError(auth="OAuth JWT Token")
     payload = jwt.decode(
-        credentials.credentials, Settings.JWT_SECRET_KEY, algorithms=[
+        token, Settings.JWT_SECRET_KEY, algorithms=[
             Settings.JWT_ALGORITHM]
     )
     return OAuthPayloadData.model_validate(payload)

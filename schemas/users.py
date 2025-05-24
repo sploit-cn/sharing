@@ -17,12 +17,13 @@ class UserBase(BaseModel):
   email: EmailStr
 
 
-class UserPassMixin(BaseModel):
+class UserLogin(BaseModel):
+  username: str
+  password: str
+
+
+class UserCreate(UserBase):
   password: str = Field(min_length=6)
-
-
-class UserCreate(UserBase, UserPassMixin):
-  pass
 
 
 class UserUpdate(BaseModel):

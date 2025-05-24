@@ -54,10 +54,12 @@ class ProjectService:
 
   @staticmethod
   async def suggest_projects(keyword: str) -> list[str]:
-    return await ProjectService.suggest_projects_through_es(keyword)
+    return await ProjectService.suggest_projects_through_db(keyword)
 
   @staticmethod
   async def suggest_projects_through_es(keyword: str) -> list[str]:
+    if keyword == "":
+      return await ProjectService.suggest_projects_through_db("")
     search = AsyncSearch(index="projects")
     search = search.suggest('name', keyword, completion={
                             'field': 'name.suggest'}).source(fields=False)[0:10]
