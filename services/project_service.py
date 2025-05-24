@@ -1,7 +1,7 @@
 from elasticsearch.dsl import AsyncSearch
 from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
 from core.exceptions import ResourceNotFoundError, ResourceExistsError
-from models.models import Comment, Favorite, Image, Platform, Project, Tag, User
+from models.models import Comment, Favorite, Image, Platform, Project, Rating, Tag, User
 from schemas.comments import CommentCreate
 from schemas.common import PaginatedData
 from schemas.projects import (
@@ -12,6 +12,7 @@ from schemas.projects import (
     ProjectRepoDetail,
     ProjectSearchParams,
 )
+from schemas.ratings import RatingDistributionResponse, RatingUserResponse
 from services.user_service import UserService
 from utils.database import pagination_query
 from utils.gitee_api import GiteeAPI
@@ -21,6 +22,7 @@ from tortoise.transactions import atomic
 from tortoise.expressions import F
 from tortoise.query_utils import Prefetch
 from tortoise.exceptions import IntegrityError
+from tortoise.functions import Count
 
 
 class ProjectService:
@@ -167,6 +169,33 @@ class ProjectService:
         Prefetch("user", queryset=User.all().only(
             "id", "username", "avatar", "bio", "in_use"))
     ).order_by("created_at")
+
+  @staticmethod
+  async def get_project_ratings(project_id: int):
+    ratings = await Rating.filter(project_id=project_id).prefetch_related(
+        Prefetch("user", queryset=User.all().only(
+            "id", "username", "avatar", "bio", "in_use"))
+    ).order_by("updated_at")
+    grouped = await Rating.filter(project_id=project_id).annotate(count=Count("score")).group_by("score").values("score", "count")
+    distribution = {item["score"]: item["count"] for item in grouped}
+    ratings = [RatingUserResponse(
+        id=rating.id,
+        user=rating.user,
+        score=rating.score,
+        updated_at=rating.updated_at,
+    ) for rating in ratings]
+    return RatingDistributionResponse(
+        ratings=ratings,
+        distribution=distribution,
+    )
+
+  @staticmethod
+  async def get_my_rating(project_id: int, user_id: int):
+    rating = await Rating.get_or_none(project_id=project_id, user_id=user_id)
+    if rating is None:
+      raise ResourceNotFoundError(
+          resource=f"用户ID:{user_id} 项目ID:{project_id} 评分")
+    return rating
 
   @staticmethod
   @atomic()

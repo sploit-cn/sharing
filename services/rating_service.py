@@ -1,5 +1,5 @@
 from models.models import Project, Rating
-from schemas.ratings import RatingCreate, RatingUpdate
+from schemas.ratings import RatingCreate, RatingModifiedResponse, RatingUpdate
 from services.project_service import ProjectService
 from tortoise.transactions import atomic
 from core.exceptions import ResourceConflictError, ResourceNotFoundError
@@ -42,7 +42,7 @@ class RatingService:
       await rating.save()
     except IntegrityError:
       raise ResourceConflictError(message="已存在", resource="评分")
-    return rating
+    return RatingModifiedResponse(average_rating=project.average_rating, rating_count=project.rating_count)
 
   @staticmethod
   @atomic()
@@ -55,4 +55,4 @@ class RatingService:
       await project.save()
     await rating.update_from_dict(
         rating_update.model_dump(exclude_unset=True)).save()
-    return rating
+    return RatingModifiedResponse(average_rating=project.average_rating, rating_count=project.rating_count)

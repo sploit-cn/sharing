@@ -142,7 +142,7 @@ class Rating(CreateUpdateTimeMixin, Model):
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
       "models.User", related_name="ratings"
   )
-  score = fields.FloatField(
+  score = fields.IntField(
       validators=[validators.MinValueValidator(
           0), validators.MaxValueValidator(10)]
   )

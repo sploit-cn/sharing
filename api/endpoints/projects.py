@@ -17,9 +17,11 @@ from schemas.projects import (
     ProjectRepoDetail,
     ProjectSearchParams,
 )
+from schemas.ratings import RatingCreate, RatingDistributionResponse, RatingModifiedResponse, RatingResponse, RatingUpdate
 from services.comment_service import CommentService
 from services.notification_service import NotificationService
 from services.project_service import ProjectService
+from services.rating_service import RatingService
 from services.user_service import UserService
 from tasks.elastic_sync import delete_project_from_es, sync_project_to_es
 from utils.security import (
@@ -75,6 +77,18 @@ async def get_project_favorites(project_id: int):
   return DataResponse(data=result)
 
 
+@router.get("/{project_id}/ratings", response_model=DataResponse[RatingDistributionResponse])
+async def get_project_ratings(project_id: int):
+  result = await ProjectService.get_project_ratings(project_id)
+  return DataResponse(data=result)
+
+
+@router.get("/{project_id}/my-rating", response_model=DataResponse[RatingResponse])
+async def get_my_rating(project_id: int, payload: UserPayloadData = Security(verify_current_user)):
+  result = await ProjectService.get_my_rating(project_id, payload.id)
+  return DataResponse(data=result)
+
+
 @router.get("/{project_id}", response_model=DataResponse[ProjectFullResponse])
 async def get_project(project_id: int):
   result = await ProjectService.get_project(project_id)
@@ -117,6 +131,12 @@ async def create_comment(project_id: int, comment_create: CommentCreate, payload
   else:
     await NotificationService.notify_admins(f"您分享的项目 {project.name} 有新的评论", related_project=comment.project_id, related_comment=comment.id)
   return DataResponse(data=comment)
+
+
+@router.post("/{project_id}/rating", response_model=DataResponse[RatingModifiedResponse])
+async def create_rating(project_id: int, rating_create: RatingCreate, payload: UserPayloadData = Security(verify_current_user)):
+  rating = await RatingService.create_rating(project_id, payload.id, rating_create)
+  return DataResponse(data=rating)
 
 
 @router.put("/my/{project_id}", response_model=DataResponse[ProjectFullResponse])
@@ -172,6 +192,12 @@ async def unfeature_project(project_id: int, background_tasks: BackgroundTasks, 
   await NotificationService.notify_user(f"您分享的项目 {project.name} 已取消精选", user_id=project.submitter_id, related_project=project.id)
   background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
+
+
+@router.put("/{project_id}/rating", response_model=DataResponse[RatingModifiedResponse])
+async def update_rating(project_id: int, rating_update: RatingUpdate, payload: UserPayloadData = Security(verify_current_user)):
+  rating = await RatingService.update_rating(project_id, payload.id, rating_update)
+  return DataResponse(data=rating)
 
 
 @router.put("/{project_id}", response_model=DataResponse[ProjectFullResponse])
