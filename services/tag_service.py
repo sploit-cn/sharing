@@ -29,3 +29,10 @@ class TagService:
     print(tag_update.model_dump(exclude_unset=True))
     await tag.update_from_dict(tag_update.model_dump(exclude_unset=True)).save()
     return tag
+
+  @staticmethod
+  async def delete_tag(tag_id: int):
+    tag = await Tag.get_or_none(id=tag_id)
+    if tag is None:
+      raise ResourceNotFoundError(resource="标签")
+    await tag.delete()

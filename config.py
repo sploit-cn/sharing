@@ -8,7 +8,6 @@ load_dotenv()
 
 
 class Settings:
-
   BASE_DIR = Path(__file__).parent
   STATIC_DIR = BASE_DIR / "static"
   IMAGES_DIR = STATIC_DIR / "images"
@@ -29,7 +28,7 @@ class Settings:
 
   ACCESS_TOKEN_EXPIRE_SECONDS = 7 * 24 * 60 * 60
   JWT_ALGORITHM = "HS256"
-  JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+  JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 
   GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
   GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
