@@ -10,7 +10,7 @@ class NotificationService:
             "related_project", queryset=Project.all().only("id", "name", "repo_id", "avatar", "is_approved")
         ),
         Prefetch(
-            "related_comment", queryset=Comment.all().only("id", "content", "user_id", "project_id")
+            "related_comment", queryset=Comment.all().only("id", "content", "user_id", "project_id", "created_at")
         ),
     )
     return notifications

@@ -9,7 +9,7 @@ from utils.security import UserPayloadData, verify_current_admin_user
 router = APIRouter()
 
 
-@router.get("/", response_model=DataResponse[list[TagResponse]])
+@router.get("", response_model=DataResponse[list[TagResponse]])
 async def get_tags():
   result = await TagService.get_tags()
   return DataResponse(data=result)
@@ -21,7 +21,7 @@ async def get_tag(tag_id: int):
   return DataResponse(data=result)
 
 
-@router.post("/", response_model=DataResponse[TagResponse])
+@router.post("", response_model=DataResponse[TagResponse])
 async def create_tag(tag_create: TagCreate, payload: UserPayloadData = Security(verify_current_admin_user)):
   result = await TagService.create_tag(tag_create)
   return DataResponse(data=result)

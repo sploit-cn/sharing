@@ -23,7 +23,7 @@ from utils.security import (
 router = APIRouter()
 
 
-@router.get("/", response_model=PaginatedResponse[UserResponse])
+@router.get("", response_model=PaginatedResponse[UserResponse])
 async def get_users(
     params: Annotated[UserPaginationParams, Query()],
     payload: UserPayloadData = Security(verify_current_admin_user),

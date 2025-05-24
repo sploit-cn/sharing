@@ -35,7 +35,7 @@ from utils.time import now
 router = APIRouter()
 
 
-@router.get("/", response_model=PaginatedResponse[ProjectBaseResponse])
+@router.get("", response_model=PaginatedResponse[ProjectBaseResponse])
 async def get_projects(params: Annotated[ProjectPaginationParams, Query()]):
   result = await ProjectService.get_projects(params)
   return PaginatedResponse(data=result)
@@ -96,7 +96,7 @@ async def get_project(project_id: int):
   return DataResponse(data=result)
 
 
-@router.post("/", response_model=DataResponse[ProjectFullResponse])
+@router.post("", response_model=DataResponse[ProjectFullResponse])
 async def create_project(
     project_create: ProjectCreate,
     background_tasks: BackgroundTasks,

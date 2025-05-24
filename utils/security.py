@@ -91,7 +91,6 @@ async def verify_current_user(
   """获取当前用户"""
   try:
     token = header_token or user_token
-    print(token)
     if not token:
       raise AuthenticationError(auth="JWT Token")
     payload = jwt.decode(
