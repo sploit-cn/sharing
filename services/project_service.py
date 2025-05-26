@@ -65,7 +65,8 @@ class ProjectService:
       "name", keyword, completion={"field": "name.suggest"}
     ).source(fields=False)[0:10]
     result = await search.execute()
-    return [item.text for item in result.suggest.name[0].options]  # pyright: ignore
+    # pyright: ignore
+    return [item.text for item in result.suggest.name[0].options]
 
   @staticmethod
   async def suggest_projects_through_db(keyword: str) -> list[str]:
@@ -121,6 +122,10 @@ class ProjectService:
     if result is None:
       raise ResourceNotFoundError(resource=f"项目ID:{project_id}")
     return result
+
+  @staticmethod
+  async def get_unapproved_projects() -> list[Project]:
+    return await Project.filter(is_approved=None).prefetch_related("tags")
 
   @staticmethod
   async def get_repo_detail(platform: Platform, repo_id: str):

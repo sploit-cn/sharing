@@ -65,6 +65,12 @@ async def get_my_projects(payload: UserPayloadData = Security(verify_current_use
   return DataResponse(data=result)
 
 
+@router.get("/unapproved", response_model=DataResponse[list[ProjectBaseResponse]])
+async def get_unapproved_projects(payload: UserPayloadData = Security(verify_current_admin_user)):
+  result = await ProjectService.get_unapproved_projects()
+  return DataResponse(data=result)
+
+
 @router.get("/{project_id}/comments", response_model=DataResponse[list[CommentResponse]])
 async def get_project_comments(project_id: int):
   result = await ProjectService.get_project_comments(project_id)

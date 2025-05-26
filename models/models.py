@@ -85,7 +85,7 @@ class Project(CreateTimeMixin, Model):
   submitter: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
     "models.User", related_name="projects", on_delete=fields.OnDelete.NO_ACTION
   )
-  is_approved = fields.BooleanField(default=False, description="是否审核通过")
+  is_approved = fields.BooleanField(null=True, description="是否审核通过")
   approval_date = fields.DatetimeField(null=True)
   view_count = fields.IntField(default=0)
   is_featured = fields.BooleanField(default=False, description="是否精选")

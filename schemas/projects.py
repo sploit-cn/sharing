@@ -40,6 +40,7 @@ class ProjectOwnerUpdate(BaseModel):
 
 class ProjectAdminUpdate(ProjectOwnerUpdate):
   """管理员更新项目请求模型"""
+
   pass
 
 
@@ -57,7 +58,7 @@ class ProjectBaseResponse(BaseModel):
   average_rating: float
   rating_count: int
   view_count: int
-  is_approved: bool
+  is_approved: Optional[bool]
   is_featured: bool
   submitter_id: int
   avatar: Optional[str] = None
@@ -94,40 +95,40 @@ class ProjectRelatedResponse(BaseModel):
   name: str
   repo_id: str
   avatar: Optional[str] = None
-  is_approved: bool
+  is_approved: Optional[bool]
 
   class Config:
     from_attributes = True
 
 
 ProjectOrderFields = Literal[
-    "id",
-    "stars",
-    "forks",
-    "watchers",
-    "contributors",
-    "issues",
-    "average_rating",
-    "rating_count",
-    "created_at",
-    "updated_at",
-    "repo_created_at",
-    "last_commit_at",
-    "last_sync_at",
-    "is_approved",
-    "is_featured",
-    "view_count",
-    "submitter",
-    "name",
-    "brief",
-    "description",
-    "website_url",
-    "download_url",
-    "license",
-    "programming_language",
-    "code_example",
-    "platform",
-    "repo_id",
+  "id",
+  "stars",
+  "forks",
+  "watchers",
+  "contributors",
+  "issues",
+  "average_rating",
+  "rating_count",
+  "created_at",
+  "updated_at",
+  "repo_created_at",
+  "last_commit_at",
+  "last_sync_at",
+  "is_approved",
+  "is_featured",
+  "view_count",
+  "submitter",
+  "name",
+  "brief",
+  "description",
+  "website_url",
+  "download_url",
+  "license",
+  "programming_language",
+  "code_example",
+  "platform",
+  "repo_id",
 ]
 
 

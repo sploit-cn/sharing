@@ -18,3 +18,12 @@ class NotificationResponse(BaseModel):
 
   class Config:
     from_attributes = True
+
+
+class NotificationBroadcastCreate(BaseModel):
+  content: str
+
+
+class NotificationUserCreate(BaseModel):
+  user_id: int
+  content: str
