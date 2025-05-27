@@ -23,17 +23,25 @@ async def get_comment(comment_id: int):
 
 
 @router.put("/{comment_id}", response_model=DataResponse[CommentResponse])
-async def update_comment(comment_id: int, comment_update: CommentUpdate, payload: UserPayloadData = Security(verify_current_user)):
+async def update_comment(
+  comment_id: int,
+  comment_update: CommentUpdate,
+  payload: UserPayloadData = Security(verify_current_user),
+):
   comment = await CommentService.get_comment(comment_id)
   if comment.user.id != payload.id and payload.role != Role.ADMIN:
     raise PermissionDeniedError(message="您无权更新此评论")
+  if comment_update.content is None:
+    raise ValueError("评论内容不能为空")
   comment.content = comment_update.content
   await comment.save()
   return DataResponse(data=comment)
 
 
 @router.delete("/{comment_id}", response_model=MessageResponse)
-async def delete_comment(comment_id: int, payload: UserPayloadData = Security(verify_current_user)):
+async def delete_comment(
+  comment_id: int, payload: UserPayloadData = Security(verify_current_user)
+):
   comment = await CommentService.get_comment(comment_id)
   if comment.user.id != payload.id and payload.role != Role.ADMIN:
     raise PermissionDeniedError(message="您无权删除此评论")

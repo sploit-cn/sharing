@@ -117,6 +117,7 @@ async def create_project(
   project = await ProjectService.create_project(project_model)
   await SyncLog.create(project=project, status="success", project_detail=repo_detail.model_dump())
   await NotificationService.notify_admins(f"项目 {project.name} 已提交审核", related_project=project.id)
+  await NotificationService.notify_user(f"你的项目 {project.name} 已提交审核", user_id=payload.id, related_project=project.id)
   background_tasks.add_task(sync_project_to_es, project)
   return DataResponse(data=project)
 
@@ -135,7 +136,7 @@ async def create_comment(project_id: int, comment_create: CommentCreate, payload
     parent_comment = await CommentService.get_comment(comment_create.parent_id)
     await NotificationService.notify_user(f"您在项目 {project.name} 的评论有新的回复", user_id=parent_comment.user_id, related_project=comment.project_id, related_comment=comment.id)
   else:
-    await NotificationService.notify_admins(f"您分享的项目 {project.name} 有新的评论", related_project=comment.project_id, related_comment=comment.id)
+    await NotificationService.notify_user(f"您分享的项目 {project.name} 有新的评论", user_id=project.submitter_id, related_project=comment.project_id, related_comment=comment.id)
   return DataResponse(data=comment)
 
 

@@ -64,7 +64,7 @@ class Project(CreateTimeMixin, Model):
   brief = fields.CharField(max_length=255, default="")
   description = fields.TextField(default="")
   repo_url = fields.CharField(max_length=255, unique=True)
-  website_url = fields.CharField(max_length=255, default="")
+  website_url = fields.CharField(max_length=255, null=True)
   download_url = fields.CharField(max_length=255, null=True)
   stars = fields.IntField(default=0)
   forks = fields.IntField(default=0)
@@ -83,7 +83,7 @@ class Project(CreateTimeMixin, Model):
   repo_id = fields.CharField(max_length=255)
   owner_platform_id = fields.IntField(null=True)
   submitter: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="projects", on_delete=fields.OnDelete.NO_ACTION
+      "models.User", related_name="projects", on_delete=fields.OnDelete.NO_ACTION
   )
   is_approved = fields.BooleanField(null=True, description="是否审核通过")
   approval_date = fields.DatetimeField(null=True)
@@ -94,7 +94,7 @@ class Project(CreateTimeMixin, Model):
 
   # 反向关系
   tags: fields.ManyToManyRelation["Tag"] = fields.ManyToManyField(
-    "models.Tag", related_name="projects", through="project_tags"
+      "models.Tag", related_name="projects", through="project_tags"
   )
   ratings: fields.ReverseRelation["Rating"]
   comments: fields.ReverseRelation["Comment"]
@@ -106,12 +106,12 @@ class Project(CreateTimeMixin, Model):
   class Meta(Model.Meta):
     table = "projects"
     indexes = (
-      "repo_id",
-      "programming_language",
-      "stars",
-      "last_commit_at",
-      "created_at",
-      "last_sync_at",
+        "repo_id",
+        "programming_language",
+        "stars",
+        "last_commit_at",
+        "created_at",
+        "last_sync_at",
     )
 
 
@@ -136,13 +136,14 @@ class Rating(CreateUpdateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   project: fields.ForeignKeyRelation["Project"] = fields.ForeignKeyField(
-    "models.Project", related_name="ratings"
+      "models.Project", related_name="ratings"
   )
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="ratings"
+      "models.User", related_name="ratings"
   )
   score = fields.IntField(
-    validators=[validators.MinValueValidator(0), validators.MaxValueValidator(10)]
+      validators=[validators.MinValueValidator(
+          0), validators.MaxValueValidator(10)]
   )
   is_used = fields.BooleanField(default=False)
 
@@ -157,14 +158,14 @@ class Comment(CreateUpdateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   project: fields.ForeignKeyRelation["Project"] = fields.ForeignKeyField(
-    "models.Project", related_name="comments"
+      "models.Project", related_name="comments"
   )
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="comments"
+      "models.User", related_name="comments"
   )
   content = fields.TextField()
   parent: fields.ForeignKeyNullableRelation["Comment"] = fields.ForeignKeyField(
-    "models.Comment", related_name="replies", null=True
+      "models.Comment", related_name="replies", null=True
   )
 
   # 反向关系
@@ -181,10 +182,10 @@ class Favorite(CreateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   project: fields.ForeignKeyRelation["Project"] = fields.ForeignKeyField(
-    "models.Project", related_name="favorites"
+      "models.Project", related_name="favorites"
   )
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="favorites"
+      "models.User", related_name="favorites"
   )
 
   class Meta(Model.Meta):
@@ -198,19 +199,19 @@ class Notification(CreateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="notifications"
+      "models.User", related_name="notifications"
   )
   content = fields.TextField()
   is_read = fields.BooleanField(default=False)
   related_project: fields.ForeignKeyNullableRelation["Project"] = (
-    fields.ForeignKeyField(
-      "models.Project", related_name="related_notifications", null=True
-    )
+      fields.ForeignKeyField(
+          "models.Project", related_name="related_notifications", null=True
+      )
   )
   related_comment: fields.ForeignKeyNullableRelation["Comment"] = (
-    fields.ForeignKeyField(
-      "models.Comment", related_name="related_notifications", null=True
-    )
+      fields.ForeignKeyField(
+          "models.Comment", related_name="related_notifications", null=True
+      )
   )
 
   class Meta(Model.Meta):
@@ -223,7 +224,7 @@ class OAuthAccount(CreateUpdateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   user: fields.ForeignKeyNullableRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="oauth_accounts", null=True
+      "models.User", related_name="oauth_accounts", null=True
   )
   platform = fields.CharEnumField(Platform)
   platform_id = fields.IntField()
@@ -240,7 +241,7 @@ class SyncLog(CreateTimeMixin, Model):
 
   id = fields.IntField(pk=True)
   project: fields.ForeignKeyRelation["Project"] = fields.ForeignKeyField(
-    "models.Project", related_name="sync_logs"
+      "models.Project", related_name="sync_logs"
   )
   status = fields.CharField(max_length=20)
   project_detail = fields.JSONField(default=None)
@@ -256,10 +257,10 @@ class Image(CreateTimeMixin, Model):
   id = fields.IntField(pk=True)
   file_name = fields.CharField(max_length=255)
   user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(
-    "models.User", related_name="images", on_delete=fields.OnDelete.NO_ACTION
+      "models.User", related_name="images", on_delete=fields.OnDelete.NO_ACTION
   )
   project: fields.ForeignKeyNullableRelation["Project"] = fields.ForeignKeyField(
-    "models.Project", related_name="images", null=True
+      "models.Project", related_name="images", null=True
   )
   original_name = fields.CharField(max_length=255)
   mime_type = fields.CharField(max_length=50)
