@@ -26,7 +26,6 @@ class TagService:
     tag = await Tag.get_or_none(id=tag_id)
     if tag is None:
       raise ResourceNotFoundError(resource=f"标签ID:{tag_id}")
-    print(tag_update.model_dump(exclude_unset=True))
     await tag.update_from_dict(tag_update.model_dump(exclude_unset=True)).save()
     return tag
 

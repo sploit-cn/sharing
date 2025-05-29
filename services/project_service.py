@@ -1,5 +1,5 @@
 from elasticsearch.dsl import AsyncSearch
-from elasticsearch.dsl.query import MultiMatch, Term, TermsSet
+from elasticsearch.dsl.query import Bool, Exists, MultiMatch, Term, TermsSet
 from core.exceptions import ResourceNotFoundError, ResourceExistsError
 from models.models import Comment, Favorite, Image, Platform, Project, Rating, Tag, User
 from schemas.comments import CommentCreate
@@ -32,14 +32,16 @@ class ProjectService:
   async def search_projects(params: ProjectSearchParams) -> list[int]:
     search = AsyncSearch(index="projects")
     if params.programming_language:
-      search = search.filter(Term(programming_language=params.programming_language))
+      if params.programming_language == "Other":
+        search = search.filter(Bool(must_not=Exists(field="programming_language")))
+      else:
+        search = search.filter(Term(programming_language=params.programming_language))
     if params.license:
       search = search.filter(Term(license=params.license))
     if params.platform:
       search = search.filter(Term(platform=params.platform))
     if params.is_featured is not None:
       search = search.filter(Term(is_featured=params.is_featured))
-    print(params.tags)
     if (tags_len := len(params.tags)) > 0:
       search = search.filter(
         TermsSet(tags={"terms": params.tags, "minimum_should_match": tags_len})
@@ -48,12 +50,40 @@ class ProjectService:
       search = search.query(
         MultiMatch(query=params.keyword, fields=["name^5", "brief^3", "description^1"])
       )
-    print(search.to_dict())
     result = search.source(fields=False)
     result_ids = []
     async for hit in result:
       result_ids.append(int(hit.meta.id))
     return result_ids
+
+  @staticmethod
+  async def get_related_projects(project_id: int):
+    project = await ProjectService.get_project(project_id)
+    search = AsyncSearch(index="projects")
+    if (tags_len := len(project.tags)) > 0:
+      search = search.filter(
+        TermsSet(
+          tags={
+            "terms": [tag.id for tag in project.tags],
+            "minimum_should_match": int((tags_len + 1) / 2),
+          }
+        )
+      )
+      result = search.source(fields=False)
+      result_ids = []
+      async for hit in result:
+        result_ids.append(int(hit.meta.id))
+      result_ids.remove(project_id)
+      query = Project.filter(id__in=result_ids).prefetch_related("tags")
+      unsorted_results = await query
+      project_map = {project.id: project for project in unsorted_results}
+      results = []
+      for project_id in result_ids:
+        if project_id not in project_map:
+          continue
+        results.append(project_map[project_id])
+      return results
+    return []
 
   @staticmethod
   async def suggest_projects(keyword: str) -> list[str]:
@@ -96,12 +126,13 @@ class ProjectService:
           (params.page - 1) * params.page_size : params.page * params.page_size
           + params.page_size
         ]
-        print("id_list", id_list)
         query = Project.filter(id__in=id_list).prefetch_related("tags")
         unsorted_results = await query
         project_map = {project.id: project for project in unsorted_results}
         results = []
         for project_id in id_list:
+          if project_id not in project_map:
+            continue
           results.append(project_map[project_id])
         return PaginatedData(
           items=results,
