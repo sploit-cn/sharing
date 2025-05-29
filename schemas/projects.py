@@ -133,7 +133,7 @@ ProjectOrderFields = Literal[
 
 
 class ProjectPaginationParams(PaginationParams):
-  order_by: Optional[ProjectOrderFields] = "updated_at"
+  order_by: Optional[ProjectOrderFields] = None
   order: Order = "desc"
   ids: Optional[list[int]] = None
 
